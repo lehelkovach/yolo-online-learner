@@ -8,6 +8,41 @@
 
 ---
 
+## Quickstart (Phase 1: Video → YOLO → BBPs)
+
+This repo now includes a minimal **Phase-1 scaffold**:
+
+- `perception/bbp.py`: `BBP` + `BoundingBox` data model
+- `perception/video.py`: video/camera frame iterator (OpenCV)
+- `perception/yolo_adapter.py`: Ultralytics YOLO adapter → BBPs
+- `scripts/run_bbp_stream.py`: CLI to stream BBPs and optionally write JSONL
+
+### Install
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+pip install -r requirements-vision.txt
+```
+
+### Run on a video file
+
+```bash
+python scripts/run_bbp_stream.py --source path/to/video.mp4 --max-frames 200
+```
+
+### Run on webcam
+
+```bash
+python scripts/run_bbp_stream.py --source 0 --max-frames 200
+```
+
+### Save BBPs to JSONL
+
+```bash
+python scripts/run_bbp_stream.py --source 0 --save-jsonl outputs/bbps.jsonl --max-frames 200
+```
+
 ## 0. Executive Summary
 
 This system treats **YOLO detections as attentional percepts**, not labels. Each detection becomes a **Bounding Box Percept (BBP)**—a transient sensory hypothesis that feeds an **online learning pipeline**. Over time, BBPs are bound into tracks, tracks form object prototypes, prototypes organize into categories, and associations form a **dynamic percept graph**.

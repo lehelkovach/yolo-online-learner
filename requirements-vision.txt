@@ -1,0 +1,4 @@
+# Phase-1 vision stack (heavier dependencies)
+opencv-python>=4.10
+ultralytics>=8.2
+
