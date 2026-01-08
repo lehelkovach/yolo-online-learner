@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+# ruff: noqa: E402, I001
+
 import argparse
 import json
+import sys
 from pathlib import Path
+
+# Allow running via absolute path from any working directory.
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from perception.video import iter_frames
 from perception.yolo_adapter import YoloBbpGenerator, bbp_summary

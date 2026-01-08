@@ -1,12 +1,20 @@
 from __future__ import annotations
 
+# ruff: noqa: E402, I001
+
 import argparse
 import json
 import os
 import random
+import sys
 import time
 from dataclasses import asdict
 from pathlib import Path
+
+# Allow running via absolute path from any working directory.
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from attention.scheduler import AttentionScheduler
 from experiments.config import ExperimentConfig
