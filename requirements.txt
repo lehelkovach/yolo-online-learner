@@ -1,0 +1,4 @@
+# Core (lightweight) runtime dependencies
+numpy>=1.26
+networkx>=3.2
+

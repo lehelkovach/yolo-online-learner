@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "yolo-online-learner"
+version = "0.1.0"
+description = "Online perceptual learning system driven by YOLO BBPs"
+readme = "readme.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+numpy = ">=1.26"
+networkx = ">=3.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.0"
+ruff = ">=0.6"
+
+[tool.poetry.group.vision]
+optional = true
+
+[tool.poetry.group.vision.dependencies]
+opencv-python = ">=4.10"
+ultralytics = ">=8.2"
+
+[build-system]
+requires = ["poetry-core>=1.9.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+lint.select = ["E", "F", "I", "UP", "B"]
+
