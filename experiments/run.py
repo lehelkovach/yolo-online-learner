@@ -8,6 +8,7 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
+from attention.scheduler import AttentionScheduler
 from experiments.config import ExperimentConfig
 from perception.video import iter_frames
 from perception.yolo_adapter import YoloBbpGenerator
@@ -32,6 +33,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
     gen = YoloBbpGenerator(
         model=cfg.yolo_model, device=cfg.yolo_device, conf=cfg.yolo_conf, iou=cfg.yolo_iou
     )
+    attn = AttentionScheduler()
 
     with out_path.open("w", encoding="utf-8") as f:
         f.write(json.dumps({"event": "session_start", "config": asdict(cfg)}) + "\n")
@@ -40,12 +42,19 @@ def run_session(cfg: ExperimentConfig) -> Path:
             bbps = gen.detect_bbps(
                 frame_idx=fr.frame_idx, timestamp_s=fr.timestamp_s, frame_bgr=fr.image
             )
+            sel = attn.select(bbps)
             f.write(
                 json.dumps(
                     {
                         "event": "frame",
                         "frame_idx": fr.frame_idx,
                         "timestamp_s": fr.timestamp_s,
+                        "attention": None
+                        if sel is None
+                        else {
+                            "bbp_index": sel.bbp_index,
+                            "score": sel.score,
+                        },
                         "bbps": [b.to_dict() for b in bbps],
                     }
                 )
