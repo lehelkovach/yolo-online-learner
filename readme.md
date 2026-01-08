@@ -25,6 +25,14 @@ pip install -r requirements.txt -r requirements-dev.txt
 pip install -r requirements-vision.txt
 ```
 
+### Install (Poetry, reproducible)
+
+```bash
+python3 -m pip install --user poetry
+poetry install
+poetry install --with vision
+```
+
 ### Run on a video file
 
 ```bash
@@ -42,6 +50,20 @@ python scripts/run_bbp_stream.py --source 0 --max-frames 200
 ```bash
 python scripts/run_bbp_stream.py --source 0 --save-jsonl outputs/bbps.jsonl --max-frames 200
 ```
+
+### Run a session log (JSONL)
+
+```bash
+python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
+```
+
+## Docs
+
+- `docs/HANDOFF.md`: local handoff checklist + reproducibility notes
+- `docs/PHASED_PLAN.md`: minimal staged plan (least dependency first)
+- `docs/DEBUGGING.md`: debugging + refactor guidance
+- `docs/OBS_SETUP.md`: OBS recording setup for studies
+- `docs/REFERENCE_REPOS.md`: reference repos/libraries to fork or borrow from
 
 ## 0. Executive Summary
 
