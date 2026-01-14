@@ -1,0 +1,75 @@
+Codex Plan: Episodic Object Permanence + World Model
+
+Goal
+- Add object permanence without retraining YOLO by introducing a tracker and a
+  persistent state manager that keeps objects alive through short occlusions.
+- Align with Phase 5 (Tracking & Slowness) from docs/PHASED_PLAN.md and the
+  Temporal Stack in readme.md.
+
+Principles
+1) Separate recognition (BBPs) from state (tracks).
+2) Never delete an object immediately after a missed detection.
+3) Keep the tracker lightweight and deterministic first; upgrade later.
+
+Minimum Architecture Additions
+1) Tracker Layer
+   - New module: tracking/object_permanence.py
+   - Constant-velocity Kalman filter per object.
+   - Greedy IoU assignment between predicted tracks and BBPs.
+   - "Ghost" logic: keep track if time_since_last_seen_s <= max_age_s.
+
+2) World Model
+   - New class: WorldModel (tracking/world_model.py)
+   - Holds ActiveObjects list derived from tracker.
+   - Exposes query/update APIs for downstream components.
+   - Owns time_since_last_seen and "status" (visible/ghost/expired).
+
+3) Pipeline Integration
+   - experiments/run.py and/or scripts/run_bbp_stream.py:
+     - Add optional flag to enable tracking.
+     - Log tracked objects to JSONL with IDs and ghost status.
+   - Keep BBP generation unchanged.
+
+Metrics to Add (JSONL)
+- num_tracked, num_visible, num_ghost
+- track_age_histogram or mean_time_since_seen
+- id_switch_rate on synthetic or labeled sequences
+- occlusion_recovery_rate (if label exists)
+
+Tests to Add
+- Unit: tracker keeps ghost for max_age_s and expires after.
+- Unit: track ID persists across nearby detections.
+- Integration (later): occlusion sequence retains track in JSONL.
+
+Refactors to Keep Interfaces Stable
+- Introduce a Tracker protocol / interface with update(bbps, timestamp_s).
+- Keep BBP schema stable; add tracked output separately to logs.
+- Avoid adding dependencies beyond numpy in the first pass.
+
+Staged Roadmap (Aligned to docs/PHASED_PLAN.md)
+Stage 5A (Now)
+- Implement minimal Kalman-based tracker with ghost buffer.
+- Add ActiveObject and WorldModel container (no learning yet).
+
+Stage 5B
+- Add motion features (dx, dy, dscale) derived from track state.
+- Attach slowness-based updates to object prototypes.
+
+Stage 6
+- Cluster motion prototypes (object <-> motion associations).
+- Start tracking invariances across short occlusions.
+
+Stage 7+
+- Consider recurrent predictors for track dynamics once Kalman is limiting.
+- Optional DeepSORT-style appearance matching if IDs are unstable.
+
+Risks / Mitigations
+- ID switches: add class gating, stronger IoU thresholds, or appearance cues.
+- Drift: cap velocity, clamp bbox to frame bounds.
+- Over-persistence: tune max_age_s, add decay schedule.
+
+Deliverables Checklist
+- [x] tracking/object_permanence.py implemented
+- [ ] tracking/world_model.py placeholder + docs
+- [ ] optional CLI flag to enable tracking logs
+- [ ] metrics in JSONL and unit tests for occlusion
