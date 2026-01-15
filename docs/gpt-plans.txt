@@ -1,0 +1,30 @@
+Plans: Episodic Object Permanence + World Model
+
+Goal
+- Add object permanence without retraining YOLO by separating recognition
+  (BBPs) from state (tracks) and preserving object identity through occlusion.
+
+Immediate Deliverables
+1) Tracker layer (Kalman-based ghost buffer)
+   - Assign a stable track_id per object.
+   - Predict state during missing detections.
+   - Keep tracks alive until time_since_last_seen_s > max_age_s.
+
+2) State manager (WorldModel)
+   - Maintain ActiveObjects list for downstream components.
+   - Expose status (visible/ghost) and time_since_last_seen_s.
+
+3) Logging and metrics
+   - Track counts: num_tracked, num_visible, num_ghost.
+   - Basic occlusion recovery stats where labels exist.
+
+Next Steps
+- Integrate WorldModel into scripts/run_bbp_stream.py and experiments/run.py.
+- Emit tracked objects in JSONL for analysis and reproducibility.
+- Add motion features (dx, dy, dscale) from track state for Phase 6.
+- Optionally add appearance matching if ID switches persist.
+
+Risks and Mitigations
+- ID switches: increase IoU threshold and add class gating or appearance cues.
+- Drift: clamp velocities and bbox to frame bounds.
+- Over-persistence: tune max_age_s and add decay schedule.
