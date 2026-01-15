@@ -70,6 +70,6 @@ Risks / Mitigations
 
 Deliverables Checklist
 - [x] tracking/object_permanence.py implemented
-- [ ] tracking/world_model.py placeholder + docs
+- [x] tracking/world_model.py placeholder + docs
 - [ ] optional CLI flag to enable tracking logs
 - [ ] metrics in JSONL and unit tests for occlusion
