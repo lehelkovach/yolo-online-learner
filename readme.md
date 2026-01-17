@@ -71,6 +71,7 @@ python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
 ## Docs
 
 - `docs/HANDOFF.md`: local handoff checklist + reproducibility notes
+- `docs/REFRACTOR_PLAN.md`: tiered refactor spec (north star)
 - `docs/PHASED_PLAN.md`: canonical staged plan (consolidated)
 - `docs/DEBUGGING.md`: debugging + refactor guidance
 - `docs/OBS_SETUP.md`: OBS recording setup for studies
