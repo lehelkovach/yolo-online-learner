@@ -4,6 +4,7 @@
 
 - **Phase 1 BBP pipeline**: video/cam → YOLOv8 detections → BBPs
 - **Phase 3 tracking**: lightweight object permanence (IoU + ghost buffer)
+- **Phase 4-5 learning**: foveated sampling + sparse WTA codes
 - **Runnable entrypoints**:
   - `scripts/run_bbp_stream.py` (debug CLI)
   - `scripts/run_tracker_stream.py` (tracking overlay viewer)

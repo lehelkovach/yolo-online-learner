@@ -8,7 +8,7 @@
 
 ---
 
-## Quickstart (Phase 1-3: Video → YOLO → BBPs + Attention + Tracking)
+## Quickstart (Phase 1-5: Video → YOLO → BBPs + Attention + Tracking + Sparse Codes)
 
 This repo now includes a minimal **Phase-1 scaffold**:
 
@@ -17,6 +17,8 @@ This repo now includes a minimal **Phase-1 scaffold**:
 - `perception/yolo_adapter.py`: Ultralytics YOLO adapter → BBPs
 - `attention/scheduler.py`: WTA attention + inhibition-of-return (Phase 2)
 - `tracking/world_model.py`: lightweight object permanence tracker (Stage 3)
+- `vision/retina.py`: foveated sampling + sensory buffer (Stage 4)
+- `features/wta_layer.py`: WTA + Hebbian/decay sparse codes (Stage 5)
 - `scripts/run_bbp_stream.py`: CLI to stream BBPs and optionally write JSONL
 - `scripts/run_tracker_stream.py`: CLI to visualize tracked objects
 

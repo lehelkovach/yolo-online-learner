@@ -25,6 +25,7 @@
 
 - **frame**: frame_idx, timestamp
 - **attention**: selected BBP/prototype id
+- **gaze/fovea**: center, jitter, fovea bbox
 - **prediction**: predicted embedding + error
 - **novelty/gain**: surprise, habituation state
 - **memory**: WM contents + evictions
