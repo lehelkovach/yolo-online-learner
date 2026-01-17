@@ -8,6 +8,7 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
+from attention.scheduler import AttentionScheduler
 from experiments.config import ExperimentConfig
 from perception.video import iter_frames
 from perception.yolo_adapter import YoloBbpGenerator
@@ -22,7 +23,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
     """
     Run a single recording session and write JSONL events.
 
-    Phase-1 scope: store BBPs and minimal telemetry. Later stages append to the same event log.
+    Phase-1/2 scope: store BBPs and attention selection. Later stages append to the same event log.
     """
     _seed_everything(cfg.seed)
     out_dir = Path(cfg.output_dir)
@@ -32,6 +33,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
     gen = YoloBbpGenerator(
         model=cfg.yolo_model, device=cfg.yolo_device, conf=cfg.yolo_conf, iou=cfg.yolo_iou
     )
+    attention = AttentionScheduler()
 
     with out_path.open("w", encoding="utf-8") as f:
         f.write(json.dumps({"event": "session_start", "config": asdict(cfg)}) + "\n")
@@ -40,6 +42,15 @@ def run_session(cfg: ExperimentConfig) -> Path:
             bbps = gen.detect_bbps(
                 frame_idx=fr.frame_idx, timestamp_s=fr.timestamp_s, frame_bgr=fr.image
             )
+            selection = attention.select(bbps)
+            attention_payload = (
+                None
+                if selection is None
+                else {
+                    "bbp_index": selection.bbp_index,
+                    "score": selection.score,
+                }
+            )
             f.write(
                 json.dumps(
                     {
@@ -47,6 +58,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
                         "frame_idx": fr.frame_idx,
                         "timestamp_s": fr.timestamp_s,
                         "bbps": [b.to_dict() for b in bbps],
+                        "attention": attention_payload,
                     }
                 )
                 + "\n"

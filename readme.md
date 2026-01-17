@@ -8,13 +8,14 @@
 
 ---
 
-## Quickstart (Phase 1: Video → YOLO → BBPs)
+## Quickstart (Phase 1-2: Video → YOLO → BBPs + Attention)
 
 This repo now includes a minimal **Phase-1 scaffold**:
 
 - `perception/bbp.py`: `BBP` + `BoundingBox` data model
 - `perception/video.py`: video/camera frame iterator (OpenCV)
 - `perception/yolo_adapter.py`: Ultralytics YOLO adapter → BBPs
+- `attention/scheduler.py`: WTA attention + inhibition-of-return (Phase 2)
 - `scripts/run_bbp_stream.py`: CLI to stream BBPs and optionally write JSONL
 
 ### Install
@@ -60,7 +61,7 @@ python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
 ## Docs
 
 - `docs/HANDOFF.md`: local handoff checklist + reproducibility notes
-- `docs/PHASED_PLAN.md`: minimal staged plan (least dependency first)
+- `docs/PHASED_PLAN.md`: canonical staged plan (consolidated)
 - `docs/DEBUGGING.md`: debugging + refactor guidance
 - `docs/OBS_SETUP.md`: OBS recording setup for studies
 - `docs/REFERENCE_REPOS.md`: reference repos/libraries to fork or borrow from
