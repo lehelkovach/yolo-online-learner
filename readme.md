@@ -8,7 +8,7 @@
 
 ---
 
-## Quickstart (Phase 1-2: Video → YOLO → BBPs + Attention)
+## Quickstart (Phase 1-3: Video → YOLO → BBPs + Attention + Tracking)
 
 This repo now includes a minimal **Phase-1 scaffold**:
 
@@ -16,7 +16,9 @@ This repo now includes a minimal **Phase-1 scaffold**:
 - `perception/video.py`: video/camera frame iterator (OpenCV)
 - `perception/yolo_adapter.py`: Ultralytics YOLO adapter → BBPs
 - `attention/scheduler.py`: WTA attention + inhibition-of-return (Phase 2)
+- `tracking/world_model.py`: lightweight object permanence tracker (Stage 3)
 - `scripts/run_bbp_stream.py`: CLI to stream BBPs and optionally write JSONL
+- `scripts/run_tracker_stream.py`: CLI to visualize tracked objects
 
 ### Install
 
@@ -50,6 +52,12 @@ python scripts/run_bbp_stream.py --source 0 --max-frames 200
 
 ```bash
 python scripts/run_bbp_stream.py --source 0 --save-jsonl outputs/bbps.jsonl --max-frames 200
+```
+
+### Visualize tracking (webcam or OBS virtual camera)
+
+```bash
+python scripts/run_tracker_stream.py --source 0 --max-frames 300
 ```
 
 ### Run a session log (JSONL)

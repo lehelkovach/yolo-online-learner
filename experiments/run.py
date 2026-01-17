@@ -12,6 +12,7 @@ from attention.scheduler import AttentionScheduler
 from experiments.config import ExperimentConfig
 from perception.video import iter_frames
 from perception.yolo_adapter import YoloBbpGenerator
+from tracking.world_model import WorldModel
 
 
 def _seed_everything(seed: int) -> None:
@@ -23,7 +24,8 @@ def run_session(cfg: ExperimentConfig) -> Path:
     """
     Run a single recording session and write JSONL events.
 
-    Phase-1/2 scope: store BBPs and attention selection. Later stages append to the same event log.
+    Phase-1/2 scope: store BBPs and attention selection. Stage-3 adds tracked objects.
+    Later stages append to the same event log.
     """
     _seed_everything(cfg.seed)
     out_dir = Path(cfg.output_dir)
@@ -34,6 +36,13 @@ def run_session(cfg: ExperimentConfig) -> Path:
         model=cfg.yolo_model, device=cfg.yolo_device, conf=cfg.yolo_conf, iou=cfg.yolo_iou
     )
     attention = AttentionScheduler()
+    world = WorldModel(
+        iou_threshold=cfg.tracking_iou_threshold,
+        max_missed=cfg.tracking_max_missed,
+        min_confidence=cfg.tracking_min_confidence,
+        bbox_smoothing=cfg.tracking_bbox_smoothing,
+        velocity_smoothing=cfg.tracking_velocity_smoothing,
+    )
 
     with out_path.open("w", encoding="utf-8") as f:
         f.write(json.dumps({"event": "session_start", "config": asdict(cfg)}) + "\n")
@@ -42,6 +51,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
             bbps = gen.detect_bbps(
                 frame_idx=fr.frame_idx, timestamp_s=fr.timestamp_s, frame_bgr=fr.image
             )
+            tracks = world.step(bbps, frame_idx=fr.frame_idx, timestamp_s=fr.timestamp_s)
             selection = attention.select(bbps)
             attention_payload = (
                 None
@@ -51,6 +61,8 @@ def run_session(cfg: ExperimentConfig) -> Path:
                     "score": selection.score,
                 }
             )
+            visible = sum(1 for t in tracks if t.state == "visible")
+            ghost = len(tracks) - visible
             f.write(
                 json.dumps(
                     {
@@ -58,6 +70,8 @@ def run_session(cfg: ExperimentConfig) -> Path:
                         "frame_idx": fr.frame_idx,
                         "timestamp_s": fr.timestamp_s,
                         "bbps": [b.to_dict() for b in bbps],
+                        "tracks": [t.to_dict() for t in tracks],
+                        "track_counts": {"total": len(tracks), "visible": visible, "ghost": ghost},
                         "attention": attention_payload,
                     }
                 )
@@ -80,6 +94,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--yolo-device", default=None)
     p.add_argument("--yolo-conf", type=float, default=0.25)
     p.add_argument("--yolo-iou", type=float, default=0.7)
+    p.add_argument("--tracking-iou-threshold", type=float, default=0.3)
+    p.add_argument("--tracking-max-missed", type=int, default=5)
+    p.add_argument("--tracking-min-confidence", type=float, default=0.0)
+    p.add_argument("--tracking-bbox-smoothing", type=float, default=0.7)
+    p.add_argument("--tracking-velocity-smoothing", type=float, default=0.8)
     args = p.parse_args(argv)
 
     try:
@@ -97,6 +116,11 @@ def main(argv: list[str] | None = None) -> int:
         yolo_conf=args.yolo_conf,
         yolo_iou=args.yolo_iou,
         output_dir=args.output_dir,
+        tracking_iou_threshold=args.tracking_iou_threshold,
+        tracking_max_missed=args.tracking_max_missed,
+        tracking_min_confidence=args.tracking_min_confidence,
+        tracking_bbox_smoothing=args.tracking_bbox_smoothing,
+        tracking_velocity_smoothing=args.tracking_velocity_smoothing,
     )
     out_path = run_session(cfg)
     print(str(out_path))

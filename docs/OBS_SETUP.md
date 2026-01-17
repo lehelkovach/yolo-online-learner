@@ -6,6 +6,7 @@ Goal: capture **stimulus**, **model output**, and **operator actions** in a cons
 
 - **Display Capture** (or Window Capture) for the stimulus/video window
 - **Window Capture** for your terminal (running `experiments/run.py`)
+- **Window Capture** for the tracking overlay window (`scripts/run_tracker_stream.py`)
 - **Audio Input Capture** (mic) for spoken notes
 - Optional: **Video Capture Device** (webcam) for operator
 
@@ -28,14 +29,20 @@ Goal: capture **stimulus**, **model output**, and **operator actions** in a cons
 ### Session procedure (repeatable)
 
 1) Start OBS recording.
-2) Start a new experiment session:
+2) Start a new experiment session (logging JSONL):
 
 ```bash
 poetry run python experiments/run.py --source <VIDEO_OR_CAM> --max-frames 300 --output-dir outputs
 ```
 
 3) Say the condition name aloud (or type it), and ensure it’s also in your run notes.
-4) Stop recording; keep the JSONL log alongside the video file.
+4) Optional: start the tracking overlay (visual QA):
+
+```bash
+poetry run python scripts/run_tracker_stream.py --source <VIDEO_OR_CAM> --max-frames 300
+```
+
+5) Stop recording; keep the JSONL log alongside the video file.
 
 ### What to store per session (paper-ready)
 
