@@ -25,6 +25,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--iou", type=float, default=0.7, help="YOLO NMS IoU threshold")
     p.add_argument("--stride", type=int, default=1, help="Emit every Nth frame")
     p.add_argument("--max-frames", type=int, default=200, help="Stop after N emitted frames")
+    p.add_argument("--loop", action="store_true", help="Loop video files on EOF")
     p.add_argument("--print-every", type=int, default=10, help="Log summary every N frames")
     p.add_argument("--save-jsonl", default=None, help="Write BBPs to JSONL at this path")
     args = p.parse_args(argv)
@@ -42,7 +43,9 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         for i, fr in enumerate(
-            iter_frames(source, stride=args.stride, max_frames=args.max_frames)
+            iter_frames(
+                source, stride=args.stride, max_frames=args.max_frames, loop=args.loop
+            )
         ):
             bbps = gen.detect_bbps(
                 frame_idx=fr.frame_idx, timestamp_s=fr.timestamp_s, frame_bgr=fr.image

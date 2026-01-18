@@ -8,14 +8,27 @@
 
 ---
 
-## Quickstart (Phase 1: Video → YOLO → BBPs)
+## Quickstart (Phase 1-5: Video → YOLO → BBPs + Attention + Tracking + Sparse Codes)
 
 This repo now includes a minimal **Phase-1 scaffold**:
 
 - `perception/bbp.py`: `BBP` + `BoundingBox` data model
 - `perception/video.py`: video/camera frame iterator (OpenCV)
 - `perception/yolo_adapter.py`: Ultralytics YOLO adapter → BBPs
+- `attention/scheduler.py`: WTA attention + inhibition-of-return (Phase 2)
+- `tracking/world_model.py`: lightweight object permanence tracker (Stage 3)
+- `vision/retina.py`: foveated sampling + sensory buffer (Stage 4)
+- `features/wta_layer.py`: WTA + Hebbian/decay sparse codes (Stage 5)
 - `scripts/run_bbp_stream.py`: CLI to stream BBPs and optionally write JSONL
+- `scripts/run_tracker_stream.py`: CLI to visualize tracked objects
+- `scripts/insect_retina.py`: ProtoYolo insect retina viewer
+- `scripts/insect_collider.py`: ProtoYolo Phase I collider demo
+- `scripts/insect_forager.py`: ProtoYolo Phase II forager demo
+- `scripts/protoyolo_cortex.py`: ProtoYolo Phase III/IV memory + cortex demo
+- `scripts/local_setup_run.sh`: local install + run helper
+- `scripts/generate_synthetic_video.py`: synthetic two-object video generator
+- `scripts/summarize_session.py`: JSONL summary for debugging
+- `scripts/one_shot_demo.sh`: one-shot synthetic demo runner
 
 ### Install
 
@@ -39,6 +52,24 @@ poetry install --with vision
 python scripts/run_bbp_stream.py --source path/to/video.mp4 --max-frames 200
 ```
 
+Loop a video file during testing:
+
+```bash
+python scripts/run_bbp_stream.py --source path/to/video.mp4 --loop --max-frames 200
+```
+
+### Generate a synthetic test video
+
+```bash
+python scripts/generate_synthetic_video.py --output outputs/synthetic_two_objects.mp4
+```
+
+### One-shot demo (synthetic by default)
+
+```bash
+bash scripts/one_shot_demo.sh
+```
+
 ### Run on webcam
 
 ```bash
@@ -51,19 +82,42 @@ python scripts/run_bbp_stream.py --source 0 --max-frames 200
 python scripts/run_bbp_stream.py --source 0 --save-jsonl outputs/bbps.jsonl --max-frames 200
 ```
 
+### Visualize tracking (webcam or OBS virtual camera)
+
+```bash
+python scripts/run_tracker_stream.py --source 0 --max-frames 300
+```
+
 ### Run a session log (JSONL)
 
 ```bash
 python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
 ```
 
+Summarize a session log:
+
+```bash
+python scripts/summarize_session.py --input outputs
+```
+
+### Local setup helper (one command)
+
+```bash
+bash scripts/local_setup_run.sh --mode online --source 0 --max-frames 300
+```
+
 ## Docs
 
 - `docs/HANDOFF.md`: local handoff checklist + reproducibility notes
-- `docs/PHASED_PLAN.md`: minimal staged plan (least dependency first)
+- `docs/REFRACTOR_PLAN.md`: tiered refactor spec (north star)
+- `docs/PHASED_PLAN.md`: canonical staged plan (consolidated)
+- `docs/DEVELOPMENT_PLAN.md`: staged branches + tests + benchmarks
 - `docs/DEBUGGING.md`: debugging + refactor guidance
+- `docs/TRIUNE_ARCHITECTURE.md`: consolidated Triune design spec
+- `docs/PROTOYOLO_SPEC.md`: ProtoYolo phylogenetic design spec
 - `docs/OBS_SETUP.md`: OBS recording setup for studies
 - `docs/REFERENCE_REPOS.md`: reference repos/libraries to fork or borrow from
+- `CLOUD.md`: cloud/local setup and testing guidance
 
 ## 0. Executive Summary
 
