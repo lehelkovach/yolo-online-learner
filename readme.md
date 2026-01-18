@@ -28,6 +28,7 @@ This repo now includes a minimal **Phase-1 scaffold**:
 - `scripts/local_setup_run.sh`: local install + run helper
 - `scripts/generate_synthetic_video.py`: synthetic two-object video generator
 - `scripts/summarize_session.py`: JSONL summary for debugging
+- `scripts/one_shot_demo.sh`: one-shot synthetic demo runner
 
 ### Install
 
@@ -61,6 +62,12 @@ python scripts/run_bbp_stream.py --source path/to/video.mp4 --loop --max-frames 
 
 ```bash
 python scripts/generate_synthetic_video.py --output outputs/synthetic_two_objects.mp4
+```
+
+### One-shot demo (synthetic by default)
+
+```bash
+bash scripts/one_shot_demo.sh
 ```
 
 ### Run on webcam
