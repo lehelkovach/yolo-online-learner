@@ -39,6 +39,10 @@ Use the same commands as the cloud section, but you can:
 - swap `path/to/video.mp4` for `--source 0` to use a webcam
 - omit `--no-display` to see the tracking overlay window
 
+You can also use the helper script:
+
+- `bash scripts/local_setup_run.sh --mode online --source 0 --max-frames 300`
+
 ### Notes
 
 - Save any run logs or outputs under `outputs/` for reproducibility.

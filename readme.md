@@ -25,6 +25,7 @@ This repo now includes a minimal **Phase-1 scaffold**:
 - `scripts/insect_collider.py`: ProtoYolo Phase I collider demo
 - `scripts/insect_forager.py`: ProtoYolo Phase II forager demo
 - `scripts/protoyolo_cortex.py`: ProtoYolo Phase III/IV memory + cortex demo
+- `scripts/local_setup_run.sh`: local install + run helper
 
 ### Install
 
@@ -70,6 +71,12 @@ python scripts/run_tracker_stream.py --source 0 --max-frames 300
 
 ```bash
 python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
+```
+
+### Local setup helper (one command)
+
+```bash
+bash scripts/local_setup_run.sh --mode online --source 0 --max-frames 300
 ```
 
 ## Docs
