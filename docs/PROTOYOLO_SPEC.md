@@ -503,3 +503,181 @@ class InsectForager:
 #### Next step
 
 Add Phase III (Object Permanence) so the prey target persists briefly even when motion stops.
+
+---
+
+### Phase III and IV: Memory + Cortex (Object Permanence + Recognition)
+
+This is the full evolutionary leap: add short-term memory for object permanence and
+run a lightweight classifier only on tracked crops. The retina finds motion ROIs,
+memory stabilizes them, and the cortex labels them.
+
+#### Script: `scripts/protoyolo_cortex.py`
+
+import cv2
+import numpy as np
+
+class ObjectMemory:
+    """
+    Maintains object permanence. If a moving blob stops, this memory keeps the box alive.
+    """
+    def __init__(self, persistence=30):
+        # {ID: [centroid, box, patience, label]}
+        self.targets = {}
+        self.next_id = 0
+        self.max_patience = persistence
+
+    def update(self, detected_boxes):
+        active_ids = list(self.targets.keys())
+        for obj_id in active_ids:
+            self.targets[obj_id][2] -= 1
+            if self.targets[obj_id][2] < 0:
+                del self.targets[obj_id]
+
+        for box in detected_boxes:
+            x, y, w, h = box
+            cx, cy = x + w // 2, y + h // 2
+            matched = False
+            for obj_id, data in self.targets.items():
+                saved_cx, saved_cy = data[0]
+                dist = np.linalg.norm(np.array([cx, cy]) - np.array([saved_cx, saved_cy]))
+                if dist < 50:
+                    self.targets[obj_id] = [(cx, cy), box, self.max_patience, data[3]]
+                    matched = True
+                    break
+            if not matched:
+                self.targets[self.next_id] = [(cx, cy), box, self.max_patience, "Scanning..."]
+                self.next_id += 1
+
+        return self.targets
+
+class DeepCortex:
+    """
+    Lightweight classifier (MobileNet SSD). Only runs on tracked crops.
+    """
+    def __init__(self):
+        try:
+            self.net = cv2.dnn.readNetFromCaffe(
+                "MobileNetSSD_deploy.prototxt.txt",
+                "MobileNetSSD_deploy.caffemodel",
+            )
+            self.active = True
+            self.classes = [
+                "Background", "Plane", "Bicycle", "Bird", "Boat", "Bottle", "Bus", "Car",
+                "Cat", "Chair", "Cow", "Table", "Dog", "Horse", "Motorbike", "Person",
+                "Plant", "Sheep", "Sofa", "Train", "Monitor",
+            ]
+        except Exception:
+            print("[WARNING] MobileNet files not found. Cortex is running in blind mode.")
+            self.active = False
+
+    def classify(self, frame, box):
+        if not self.active:
+            return "Unknown"
+        x, y, w, h = box
+        roi = frame[y : y + h, x : x + w]
+        if roi.shape[0] < 10 or roi.shape[1] < 10:
+            return "Noise"
+        blob = cv2.dnn.blobFromImage(cv2.resize(roi, (300, 300)), 0.007843, (300, 300), 127.5)
+        self.net.setInput(blob)
+        detections = self.net.forward()
+
+        best_conf = 0.0
+        best_label = "Unknown"
+        for i in range(detections.shape[2]):
+            confidence = detections[0, 0, i, 2]
+            if confidence > 0.5:
+                idx = int(detections[0, 0, i, 1])
+                if confidence > best_conf:
+                    best_conf = float(confidence)
+                    best_label = self.classes[idx]
+        return best_label
+
+def run_full_evolution():
+    cap = cv2.VideoCapture(0)
+    ret, prev_frame = cap.read()
+    if not ret:
+        print("Failed to grab first frame.")
+        return 1
+
+    memory = ObjectMemory(persistence=40)
+    cortex = DeepCortex()
+
+    prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+    prev_gray = cv2.GaussianBlur(prev_gray, (21, 21), 0)
+
+    print("--- AGENT EVOLVED: CORTEX ONLINE ---")
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray_blurred = cv2.GaussianBlur(gray, (21, 21), 0)
+        motion = cv2.absdiff(prev_gray, gray_blurred)
+        _, motion_mask = cv2.threshold(motion, 25, 255, cv2.THRESH_BINARY)
+
+        contours, _ = cv2.findContours(motion_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        detections = []
+        for cnt in contours:
+            if 500 < cv2.contourArea(cnt) < 15000:
+                detections.append(cv2.boundingRect(cnt))
+
+        tracked_objects = memory.update(detections)
+
+        for obj_id, data in tracked_objects.items():
+            centroid, box, patience, current_label = data
+            x, y, w, h = box
+
+            if current_label in ["Scanning...", "Unknown"]:
+                new_label = cortex.classify(frame, box)
+                tracked_objects[obj_id][3] = new_label
+
+            label = tracked_objects[obj_id][3]
+            if label == "Person":
+                color = (0, 255, 0)
+            elif label in ["Unknown", "Scanning..."]:
+                color = (0, 255, 255)
+            else:
+                color = (255, 0, 0)
+
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+            cv2.putText(
+                frame,
+                f"ID:{obj_id} {label}",
+                (x, y - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                color,
+                2,
+            )
+            bar_len = int((patience / 40) * w)
+            cv2.line(frame, (x, y + h + 5), (x + bar_len, y + h + 5), color, 3)
+
+        cv2.imshow("ProtoYolo: Full Stack", frame)
+        prev_gray = gray_blurred
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+    return 0
+
+if __name__ == "__main__":
+    run_full_evolution()
+
+#### How to use it
+
+- Download the MobileNet SSD files into the working directory:
+  - `MobileNetSSD_deploy.prototxt.txt`
+  - `MobileNetSSD_deploy.caffemodel`
+- Run the script with a webcam or video file.
+- If the files are missing, the cortex runs in blind mode and labels "Unknown."
+
+#### Expected behavior
+
+- Stand still: screen stays quiet (habituated).
+- Wave: a yellow box appears, ID assigned, label "Scanning..."
+- Keep waving: label updates (e.g., "Person") and turns green.
+- Stop moving: the box persists with a shrinking memory bar.

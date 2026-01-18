@@ -24,6 +24,7 @@ This repo now includes a minimal **Phase-1 scaffold**:
 - `scripts/insect_retina.py`: ProtoYolo insect retina viewer
 - `scripts/insect_collider.py`: ProtoYolo Phase I collider demo
 - `scripts/insect_forager.py`: ProtoYolo Phase II forager demo
+- `scripts/protoyolo_cortex.py`: ProtoYolo Phase III/IV memory + cortex demo
 
 ### Install
 
