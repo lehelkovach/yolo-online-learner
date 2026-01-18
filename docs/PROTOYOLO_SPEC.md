@@ -416,3 +416,90 @@ if __name__ == "__main__":
 
 This is a survival reflex. Before the agent learns what a "wall" or "predator" is,
 it can already avoid collisions and survive long enough to start Hebbian learning.
+
+---
+
+### Phase II: The Forager (Prey Filter)
+
+This module runs in parallel with the Collider. It filters for small, erratic motion
+and triggers approach/locking behavior when a "prey spec" is detected.
+
+#### High-level algorithm
+
+- Input: saliency map (motion + edges).
+- Blob analysis: find all moving contours.
+- Filter:
+  - Ignore large: area > threshold (handled by Collider).
+  - Ignore noise: area < min_threshold.
+  - Select small: min_threshold < area < max_threshold.
+- Vector calculation: compute target centroid vs. screen center.
+- Motor output: TURN_LEFT/RIGHT or FORWARD to minimize angle error.
+
+#### Script: `scripts/insect_forager.py`
+
+import cv2
+import numpy as np
+
+class InsectForager:
+    def __init__(self, prey_min_size=10, prey_max_size=300):
+        self.min_size = prey_min_size
+        self.max_size = prey_max_size
+        self.locked_target = None
+        self.patience = 0
+
+    def hunt(self, saliency_map, debug_frame):
+        contours, _ = cv2.findContours(
+            saliency_map, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        motor_command = "SEARCHING"
+        height, width = debug_frame.shape[:2]
+        center_screen = (width // 2, height // 2)
+
+        potential_prey = []
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if self.min_size < area < self.max_size:
+                potential_prey.append(cnt)
+
+        if potential_prey:
+            best_target = min(
+                potential_prey,
+                key=lambda cnt: np.linalg.norm(
+                    np.array(cv2.boundingRect(cnt)[:2]) - np.array(center_screen)
+                ),
+            )
+            x, y, w, h = cv2.boundingRect(best_target)
+            target_center = (x + w // 2, y + h // 2)
+
+            cv2.rectangle(debug_frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
+            cv2.line(debug_frame, center_screen, target_center, (0, 255, 255), 1)
+
+            error_x = target_center[0] - center_screen[0]
+            if abs(error_x) < 50:
+                motor_command = "FORWARD (CHASE)"
+            elif error_x < 0:
+                motor_command = "TURN_LEFT"
+            else:
+                motor_command = "TURN_RIGHT"
+
+            self.locked_target = target_center
+            self.patience = 10
+        else:
+            if self.patience > 0:
+                self.patience -= 1
+                motor_command = "SCANNING (LOST TARGET)"
+            else:
+                motor_command = "ROAMING"
+
+        return motor_command, debug_frame
+
+#### How to test the integrated agent
+
+- Safety test: walk quickly toward the camera (Collider triggers EVADE).
+- Hunting test: wave a finger/pen; a yellow box locks on and tries to center.
+- Noise test: stay still; state should return to ROAMING.
+
+#### Next step
+
+Add Phase III (Object Permanence) so the prey target persists briefly even when motion stops.

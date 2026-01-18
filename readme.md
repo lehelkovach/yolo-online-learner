@@ -23,6 +23,7 @@ This repo now includes a minimal **Phase-1 scaffold**:
 - `scripts/run_tracker_stream.py`: CLI to visualize tracked objects
 - `scripts/insect_retina.py`: ProtoYolo insect retina viewer
 - `scripts/insect_collider.py`: ProtoYolo Phase I collider demo
+- `scripts/insect_forager.py`: ProtoYolo Phase II forager demo
 
 ### Install
 
