@@ -74,6 +74,7 @@ python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
 - `docs/REFRACTOR_PLAN.md`: tiered refactor spec (north star)
 - `docs/PHASED_PLAN.md`: canonical staged plan (consolidated)
 - `docs/DEBUGGING.md`: debugging + refactor guidance
+- `docs/TRIUNE_ARCHITECTURE.md`: consolidated Triune design spec
 - `docs/OBS_SETUP.md`: OBS recording setup for studies
 - `docs/REFERENCE_REPOS.md`: reference repos/libraries to fork or borrow from
 
