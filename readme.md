@@ -75,6 +75,7 @@ python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
 - `docs/PHASED_PLAN.md`: canonical staged plan (consolidated)
 - `docs/DEBUGGING.md`: debugging + refactor guidance
 - `docs/TRIUNE_ARCHITECTURE.md`: consolidated Triune design spec
+- `docs/PROTOYOLO_SPEC.md`: ProtoYolo phylogenetic design spec
 - `docs/OBS_SETUP.md`: OBS recording setup for studies
 - `docs/REFERENCE_REPOS.md`: reference repos/libraries to fork or borrow from
 - `CLOUD.md`: cloud/local setup and testing guidance
