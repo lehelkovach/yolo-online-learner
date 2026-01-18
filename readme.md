@@ -77,6 +77,7 @@ python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
 - `docs/HANDOFF.md`: local handoff checklist + reproducibility notes
 - `docs/REFRACTOR_PLAN.md`: tiered refactor spec (north star)
 - `docs/PHASED_PLAN.md`: canonical staged plan (consolidated)
+- `docs/DEVELOPMENT_PLAN.md`: staged branches + tests + benchmarks
 - `docs/DEBUGGING.md`: debugging + refactor guidance
 - `docs/TRIUNE_ARCHITECTURE.md`: consolidated Triune design spec
 - `docs/PROTOYOLO_SPEC.md`: ProtoYolo phylogenetic design spec
