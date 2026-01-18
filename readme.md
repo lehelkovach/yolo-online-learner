@@ -21,6 +21,8 @@ This repo now includes a minimal **Phase-1 scaffold**:
 - `features/wta_layer.py`: WTA + Hebbian/decay sparse codes (Stage 5)
 - `scripts/run_bbp_stream.py`: CLI to stream BBPs and optionally write JSONL
 - `scripts/run_tracker_stream.py`: CLI to visualize tracked objects
+- `scripts/insect_retina.py`: ProtoYolo insect retina viewer
+- `scripts/insect_collider.py`: ProtoYolo Phase I collider demo
 
 ### Install
 
