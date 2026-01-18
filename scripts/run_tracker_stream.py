@@ -96,6 +96,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--iou", type=float, default=0.7, help="YOLO NMS IoU threshold")
     p.add_argument("--stride", type=int, default=1, help="Emit every Nth frame")
     p.add_argument("--max-frames", type=int, default=200, help="Stop after N emitted frames")
+    p.add_argument("--loop", action="store_true", help="Loop video files on EOF")
     p.add_argument(
         "--resize",
         type=int,
@@ -151,7 +152,11 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         for fr in iter_frames(
-            source, stride=args.stride, max_frames=args.max_frames, resize=args.resize
+            source,
+            stride=args.stride,
+            max_frames=args.max_frames,
+            resize=args.resize,
+            loop=args.loop,
         ):
             bbps = gen.detect_bbps(
                 frame_idx=fr.frame_idx, timestamp_s=fr.timestamp_s, frame_bgr=fr.image

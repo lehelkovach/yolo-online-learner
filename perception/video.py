@@ -18,6 +18,7 @@ def iter_frames(
     stride: int = 1,
     max_frames: int | None = None,
     resize: tuple[int, int] | None = None,  # (width, height)
+    loop: bool = False,
 ) -> Generator[Frame, None, None]:
     """
     Iterate frames from a video file or camera device.
@@ -25,6 +26,7 @@ def iter_frames(
     - source: path string, or int camera index
     - stride: emit every Nth frame
     - resize: optional (width, height) resize via OpenCV
+    - loop: when source is a file path, restart on EOF
     """
     try:
         import cv2  # type: ignore
@@ -47,7 +49,13 @@ def iter_frames(
         while True:
             ok, frame = cap.read()
             if not ok:
-                break
+                if loop and isinstance(source, str):
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    ok, frame = cap.read()
+                    if not ok:
+                        break
+                else:
+                    break
 
             if stride > 1 and (frame_idx % stride) != 0:
                 frame_idx += 1

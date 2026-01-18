@@ -15,6 +15,7 @@ class ExperimentConfig:
     source: str | int = 0
     max_frames: int = 300
     stride: int = 1
+    loop: bool = False
     yolo_model: str = "yolov8n.pt"
     yolo_device: str | None = None
     yolo_conf: float = 0.25

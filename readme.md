@@ -26,6 +26,8 @@ This repo now includes a minimal **Phase-1 scaffold**:
 - `scripts/insect_forager.py`: ProtoYolo Phase II forager demo
 - `scripts/protoyolo_cortex.py`: ProtoYolo Phase III/IV memory + cortex demo
 - `scripts/local_setup_run.sh`: local install + run helper
+- `scripts/generate_synthetic_video.py`: synthetic two-object video generator
+- `scripts/summarize_session.py`: JSONL summary for debugging
 
 ### Install
 
@@ -47,6 +49,18 @@ poetry install --with vision
 
 ```bash
 python scripts/run_bbp_stream.py --source path/to/video.mp4 --max-frames 200
+```
+
+Loop a video file during testing:
+
+```bash
+python scripts/run_bbp_stream.py --source path/to/video.mp4 --loop --max-frames 200
+```
+
+### Generate a synthetic test video
+
+```bash
+python scripts/generate_synthetic_video.py --output outputs/synthetic_two_objects.mp4
 ```
 
 ### Run on webcam
@@ -71,6 +85,12 @@ python scripts/run_tracker_stream.py --source 0 --max-frames 300
 
 ```bash
 python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
+```
+
+Summarize a session log:
+
+```bash
+python scripts/summarize_session.py --input outputs
 ```
 
 ### Local setup helper (one command)

@@ -84,7 +84,9 @@ def run_session(cfg: ExperimentConfig) -> Path:
     with out_path.open("w", encoding="utf-8") as f:
         f.write(json.dumps({"event": "session_start", "config": asdict(cfg)}) + "\n")
 
-        for fr in iter_frames(cfg.source, stride=cfg.stride, max_frames=cfg.max_frames):
+        for fr in iter_frames(
+            cfg.source, stride=cfg.stride, max_frames=cfg.max_frames, loop=cfg.loop
+        ):
             bbps = gen.detect_bbps(
                 frame_idx=fr.frame_idx, timestamp_s=fr.timestamp_s, frame_bgr=fr.image
             )
@@ -178,6 +180,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--source", required=True, help="Video path or camera index (e.g. 0)")
     p.add_argument("--max-frames", type=int, default=300)
     p.add_argument("--stride", type=int, default=1)
+    p.add_argument("--loop", action="store_true", help="Loop video files on EOF")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--output-dir", default="outputs")
     p.add_argument("--yolo-model", default="yolov8n.pt")
@@ -228,6 +231,7 @@ def main(argv: list[str] | None = None) -> int:
         source=source,
         max_frames=args.max_frames,
         stride=args.stride,
+        loop=args.loop,
         yolo_model=args.yolo_model,
         yolo_device=args.yolo_device,
         yolo_conf=args.yolo_conf,
