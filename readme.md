@@ -77,6 +77,7 @@ python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
 - `docs/TRIUNE_ARCHITECTURE.md`: consolidated Triune design spec
 - `docs/OBS_SETUP.md`: OBS recording setup for studies
 - `docs/REFERENCE_REPOS.md`: reference repos/libraries to fork or borrow from
+- `CLOUD.md`: cloud/local setup and testing guidance
 
 ## 0. Executive Summary
 
