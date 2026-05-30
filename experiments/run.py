@@ -4,13 +4,18 @@ import argparse
 import json
 import os
 import random
+import sys
 import time
 from dataclasses import asdict
 from pathlib import Path
 
-from experiments.config import ExperimentConfig
-from perception.video import iter_frames
-from perception.yolo_adapter import YoloBbpGenerator
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from experiments.config import ExperimentConfig  # noqa: E402
+from perception.video import iter_frames  # noqa: E402
+from perception.yolo_adapter import YoloBbpGenerator  # noqa: E402
 
 
 def _seed_everything(seed: int) -> None:
