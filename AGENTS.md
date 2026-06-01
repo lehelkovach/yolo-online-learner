@@ -13,14 +13,23 @@ Single Python research project (**yolo-online-learner**): Phase-1 pipeline is vi
 - **System package (Ubuntu):** `python3.12-venv` is required to create `.venv` on a fresh VM (`sudo apt-get install -y python3.12-venv`).
 - **Repo root on `PYTHONPATH`:** packages are not installed as an editable wheel (`package-mode = false`). Always set `export PYTHONPATH=/workspace` (or run via `poetry run` from repo root) before `pytest` or pipeline scripts.
 
-Activate and refresh deps (also what the VM update script does):
+Activate and refresh deps:
 
 ```bash
 source /workspace/.venv/bin/activate
 export PYTHONPATH=/workspace
 ```
 
-Poetry alternative: `poetry install && poetry install --with vision` then `poetry run pytest` (no manual `PYTHONPATH` if cwd is repo root).
+**Cloud agent VM update script** installs only lightweight deps (no vision stack):
+
+```bash
+test -x .venv/bin/pip || python3 -m venv .venv
+.venv/bin/pip install -q -r requirements.txt -r requirements-dev.txt
+```
+
+For Phase-1 video/YOLO locally, also run: `pip install -r requirements-vision.txt` (or `poetry install --with vision`).
+
+Poetry alternative for core+dev: `poetry install` (no `--with vision`), then `poetry run pytest`.
 
 ### Lint and test
 
@@ -32,6 +41,8 @@ Poetry alternative: `poetry install && poetry install --with vision` then `poetr
 Both need `PYTHONPATH=/workspace` when not using Poetry.
 
 ### Running the Phase-1 pipeline (core “app”)
+
+Requires `requirements-vision.txt` (OpenCV + Ultralytics). Cloud agent default install does **not** include these; add them before running pipeline CLIs.
 
 There is no long-running web server. Runnable CLIs:
 
@@ -53,7 +64,7 @@ Webcam: `--source 0` (needs a camera device; prefer video file in headless cloud
 
 ### Outputs and gitignore
 
-`outputs/` and `*.jsonl` are gitignored. YOLO weights (`*.pt`) are not ignored—avoid committing downloaded weights.
+`outputs/`, `*.jsonl`, `*.pt`, and `fixtures/*.mp4` are gitignored.
 
 ### Optional services
 
