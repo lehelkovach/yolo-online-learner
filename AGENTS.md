@@ -42,7 +42,7 @@ There is no long-running web server. Runnable CLIs:
 
 **First run** downloads `yolov8n.pt` into the repo cwd (or Ultralytics cache). Use `--device cpu` in cloud VMs without GPU.
 
-Example (file source; `fixtures/sample.mp4` is a useful smoke-test asset if present):
+Example (file source; download `fixtures/sample.mp4` per `fixtures/README.md`):
 
 ```bash
 python scripts/run_bbp_stream.py --source fixtures/sample.mp4 --device cpu --max-frames 50

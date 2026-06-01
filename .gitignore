@@ -12,3 +12,9 @@ build/
 outputs/
 *.jsonl
 
+# YOLO / Ultralytics weights (downloaded on first run)
+*.pt
+
+# Local test media (see fixtures/README.md)
+fixtures/*.mp4
+
