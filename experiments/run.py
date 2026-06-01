@@ -8,6 +8,7 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
+from attention.scheduler import AttentionScheduler
 from experiments.config import ExperimentConfig
 from perception.video import iter_frames
 from perception.yolo_adapter import YoloBbpGenerator
@@ -32,6 +33,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
     gen = YoloBbpGenerator(
         model=cfg.yolo_model, device=cfg.yolo_device, conf=cfg.yolo_conf, iou=cfg.yolo_iou
     )
+    scheduler = AttentionScheduler() if cfg.attention_enabled else None
 
     with out_path.open("w", encoding="utf-8") as f:
         f.write(json.dumps({"event": "session_start", "config": asdict(cfg)}) + "\n")
@@ -40,17 +42,19 @@ def run_session(cfg: ExperimentConfig) -> Path:
             bbps = gen.detect_bbps(
                 frame_idx=fr.frame_idx, timestamp_s=fr.timestamp_s, frame_bgr=fr.image
             )
-            f.write(
-                json.dumps(
-                    {
-                        "event": "frame",
-                        "frame_idx": fr.frame_idx,
-                        "timestamp_s": fr.timestamp_s,
-                        "bbps": [b.to_dict() for b in bbps],
-                    }
-                )
-                + "\n"
-            )
+            attended_bbp = None
+            if scheduler is not None:
+                chosen = scheduler.select(bbps)
+                attended_bbp = None if chosen is None else chosen.to_dict()
+            frame_event: dict[str, object] = {
+                "event": "frame",
+                "frame_idx": fr.frame_idx,
+                "timestamp_s": fr.timestamp_s,
+                "bbps": [b.to_dict() for b in bbps],
+            }
+            if cfg.attention_enabled:
+                frame_event["attended_bbp"] = attended_bbp
+            f.write(json.dumps(frame_event) + "\n")
 
         f.write(json.dumps({"event": "session_end"}) + "\n")
 
@@ -68,6 +72,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--yolo-device", default=None)
     p.add_argument("--yolo-conf", type=float, default=0.25)
     p.add_argument("--yolo-iou", type=float, default=0.7)
+    p.add_argument(
+        "--no-attention",
+        action="store_true",
+        help="Disable Stage-2 attention scheduler (omit attended_bbp from frame events).",
+    )
     args = p.parse_args(argv)
 
     try:
@@ -84,6 +93,7 @@ def main(argv: list[str] | None = None) -> int:
         yolo_device=args.yolo_device,
         yolo_conf=args.yolo_conf,
         yolo_iou=args.yolo_iou,
+        attention_enabled=not args.no_attention,
         output_dir=args.output_dir,
     )
     out_path = run_session(cfg)

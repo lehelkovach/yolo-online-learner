@@ -19,6 +19,8 @@ class ExperimentConfig:
     yolo_device: str | None = None
     yolo_conf: float = 0.25
     yolo_iou: float = 0.7
+    # Stage 2: log attended_bbp on frame events when True.
+    attention_enabled: bool = True
     # Output folder relative to repo root.
     output_dir: str = "outputs"
 
