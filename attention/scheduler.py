@@ -5,6 +5,21 @@ from dataclasses import dataclass
 
 from perception.bbp import BBP, BoundingBox
 
+AttentionMetrics = dict[str, float | int | None]
+
+
+def empty_attention_metrics() -> AttentionMetrics:
+    """Return the stable JSONL schema for a frame without BBP candidates."""
+    return {
+        "selected_bbp_index": None,
+        "priority": None,
+        "novelty_proxy": None,
+        "error_proxy": None,
+        "motion_proxy": None,
+        "candidate_count": 0,
+        "inhibited_count": 0,
+    }
+
 
 @dataclass(frozen=True, slots=True)
 class AttentionSelection:
@@ -18,7 +33,7 @@ class AttentionSelection:
     motion_proxy: float
     inhibited_count: int
 
-    def to_metrics(self, candidate_count: int) -> dict[str, float | int]:
+    def to_metrics(self, candidate_count: int) -> AttentionMetrics:
         return {
             "selected_bbp_index": self.bbp_index,
             "priority": self.priority,
