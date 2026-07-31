@@ -8,6 +8,7 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
+from attention.scheduler import AttentionScheduler, empty_attention_metrics
 from experiments.config import ExperimentConfig
 from perception.video import iter_frames
 from perception.yolo_adapter import YoloBbpGenerator
@@ -19,26 +20,34 @@ def _seed_everything(seed: int) -> None:
 
 
 def run_session(cfg: ExperimentConfig) -> Path:
-    """
-    Run a single recording session and write JSONL events.
-
-    Phase-1 scope: store BBPs and minimal telemetry. Later stages append to the same event log.
-    """
+    """Run a single recording session and write JSONL events."""
     _seed_everything(cfg.seed)
     out_dir = Path(cfg.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"session_seed{cfg.seed}_{int(time.time())}.jsonl"
 
     gen = YoloBbpGenerator(
-        model=cfg.yolo_model, device=cfg.yolo_device, conf=cfg.yolo_conf, iou=cfg.yolo_iou
+        model=cfg.yolo_model,
+        device=cfg.yolo_device,
+        conf=cfg.yolo_conf,
+        iou=cfg.yolo_iou,
     )
+    attention = AttentionScheduler()
 
     with out_path.open("w", encoding="utf-8") as f:
         f.write(json.dumps({"event": "session_start", "config": asdict(cfg)}) + "\n")
 
         for fr in iter_frames(cfg.source, stride=cfg.stride, max_frames=cfg.max_frames):
             bbps = gen.detect_bbps(
-                frame_idx=fr.frame_idx, timestamp_s=fr.timestamp_s, frame_bgr=fr.image
+                frame_idx=fr.frame_idx,
+                timestamp_s=fr.timestamp_s,
+                frame_bgr=fr.image,
+            )
+            selection = attention.select(bbps)
+            attention_metrics = (
+                selection.to_metrics(len(bbps))
+                if selection is not None
+                else empty_attention_metrics()
             )
             f.write(
                 json.dumps(
@@ -47,6 +56,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
                         "frame_idx": fr.frame_idx,
                         "timestamp_s": fr.timestamp_s,
                         "bbps": [b.to_dict() for b in bbps],
+                        "attention": attention_metrics,
                     }
                 )
                 + "\n"
@@ -93,4 +103,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
