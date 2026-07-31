@@ -1,4 +1,4 @@
-from attention.scheduler import AttentionScheduler
+from attention.scheduler import AttentionScheduler, empty_attention_metrics
 from perception.bbp import BBP, BoundingBox
 
 
@@ -25,6 +25,15 @@ def test_selects_exactly_one_winner_from_non_empty_frame() -> None:
 
 def test_returns_none_for_empty_frame() -> None:
     assert AttentionScheduler().select([]) is None
+    assert set(empty_attention_metrics()) == {
+        "selected_bbp_index",
+        "priority",
+        "novelty_proxy",
+        "error_proxy",
+        "motion_proxy",
+        "candidate_count",
+        "inhibited_count",
+    }
 
 
 def test_inhibition_of_return_prevents_stuck_fixation() -> None:
@@ -56,4 +65,7 @@ def test_ties_are_deterministic_by_input_order() -> None:
     scheduler = AttentionScheduler(ior_frames=0)
     bbps = [_bbp(0.0), _bbp(20.0)]
 
-    assert scheduler.select(bbps).bbp_index == 0  # type: ignore[union-attr]
+    selection = scheduler.select(bbps)
+
+    assert selection is not None
+    assert selection.bbp_index == 0
