@@ -8,11 +8,10 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
+from attention.scheduler import AttentionScheduler, empty_attention_metrics
 from experiments.config import ExperimentConfig
 from perception.video import iter_frames
 from perception.yolo_adapter import YoloBbpGenerator
-
-from attention.scheduler import AttentionScheduler
 
 
 def _seed_everything(seed: int) -> None:
@@ -48,11 +47,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
             attention_metrics = (
                 selection.to_metrics(len(bbps))
                 if selection is not None
-                else {
-                    "selected_bbp_index": None,
-                    "candidate_count": 0,
-                    "inhibited_count": 0,
-                }
+                else empty_attention_metrics()
             )
             f.write(
                 json.dumps(
