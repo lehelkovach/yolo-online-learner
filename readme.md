@@ -2,19 +2,19 @@
 
 ## Full Development Plan & Engineering Handoff Document
 
-**Status:** Consolidated, end‑to‑end design and build roadmap
+**Status:** Consolidated, endâ€‘toâ€‘end design and build roadmap
 **Audience:** Research engineers / systems engineers
-**Goal:** Implement an online, continual, biologically inspired perceptual learning system using YOLO Bounding Box Percepts (BBPs), Hebbian learning, habituation/sensitization, WTA competition, top‑down prediction, and a cascading perceptual DAG analogous to the human visual pathway.
+**Goal:** Implement an online, continual, biologically inspired perceptual learning system using YOLO Bounding Box Percepts (BBPs), Hebbian learning, habituation/sensitization, WTA competition, topâ€‘down prediction, and a cascading perceptual DAG analogous to the human visual pathway.
 
 ---
 
-## Quickstart (Phase 1: Video → YOLO → BBPs)
+## Quickstart (Phase 1: Video â†’ YOLO â†’ BBPs)
 
 This repo now includes a minimal **Phase-1 scaffold**:
 
 - `perception/bbp.py`: `BBP` + `BoundingBox` data model
 - `perception/video.py`: video/camera frame iterator (OpenCV)
-- `perception/yolo_adapter.py`: Ultralytics YOLO adapter → BBPs
+- `perception/yolo_adapter.py`: Ultralytics YOLO adapter â†’ BBPs
 - `scripts/run_bbp_stream.py`: CLI to stream BBPs and optionally write JSONL
 
 ### Install
@@ -61,27 +61,28 @@ python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
 
 - `docs/HANDOFF.md`: local handoff checklist + reproducibility notes
 - `docs/PHASED_PLAN.md`: minimal staged plan (least dependency first)
+- `docs/COGNITIVE_ARCHITECTURE_MAP.md`: consolidated architecture, research hypotheses, and experiment gates
 - `docs/DEBUGGING.md`: debugging + refactor guidance
 - `docs/OBS_SETUP.md`: OBS recording setup for studies
 - `docs/REFERENCE_REPOS.md`: reference repos/libraries to fork or borrow from
 
 ## 0. Executive Summary
 
-This system treats **YOLO detections as attentional percepts**, not labels. Each detection becomes a **Bounding Box Percept (BBP)**—a transient sensory hypothesis that feeds an **online learning pipeline**. Over time, BBPs are bound into tracks, tracks form object prototypes, prototypes organize into categories, and associations form a **dynamic percept graph**.
+This system treats **YOLO detections as attentional percepts**, not labels. Each detection becomes a **Bounding Box Percept (BBP)**â€”a transient sensory hypothesis that feeds an **online learning pipeline**. Over time, BBPs are bound into tracks, tracks form object prototypes, prototypes organize into categories, and associations form a **dynamic percept graph**.
 
 Learning is:
 
 * **Online** (no offline retraining loops)
-* **Local** (Hebbian / prediction‑error gated updates)
+* **Local** (Hebbian / predictionâ€‘error gated updates)
 * **Sparse** (WTA + inhibition)
 * **Continual** (decay + metaplasticity prevent catastrophic forgetting)
 
 The system implements **dual processing**:
 
-* **Bottom‑up recognition** (matching BBPs to learned prototypes)
-* **Top‑down prediction** (prototypes predict expected lower‑level features)
+* **Bottomâ€‘up recognition** (matching BBPs to learned prototypes)
+* **Topâ€‘down prediction** (prototypes predict expected lowerâ€‘level features)
 
-Attention acts as a **winner‑take‑most scheduler**, enforcing a single (or very small) conscious processing stream while allowing background stabilization.
+Attention acts as a **winnerâ€‘takeâ€‘most scheduler**, enforcing a single (or very small) conscious processing stream while allowing background stabilization.
 
 ---
 
@@ -91,7 +92,7 @@ Attention acts as a **winner‑take‑most scheduler**, enforcing a single (or v
 
 A BBP is the atomic perceptual unit emitted per frame.
 
-**BBP = localized, time‑indexed percept hypothesis**
+**BBP = localized, timeâ€‘indexed percept hypothesis**
 
 Properties:
 
@@ -108,23 +109,23 @@ BBPs are *not* objects, labels, or concepts.
 
 ```
 Pixels
-  ↓
+  â†“
 BBPs (YOLO)
-  ↓
-Low‑level features (V1‑like)
-  ↓
-Parts (co‑activated features)
-  ↓
+  â†“
+Lowâ€‘level features (V1â€‘like)
+  â†“
+Parts (coâ€‘activated features)
+  â†“
 Object prototypes (identity)
-  ↓
+  â†“
 Categories / scenes / concepts
 ```
 
 Each layer:
 
 * Competes internally (WTA)
-* Learns via local Hebbian / error‑gated updates
-* Predicts the layer below (top‑down)
+* Learns via local Hebbian / errorâ€‘gated updates
+* Predicts the layer below (topâ€‘down)
 
 ---
 
@@ -132,8 +133,8 @@ Each layer:
 
 Each prototype acts as:
 
-1. **Recognizer** – explains incoming percepts
-2. **Generator** – predicts expected features
+1. **Recognizer** â€“ explains incoming percepts
+2. **Generator** â€“ predicts expected features
 
 Prediction error drives:
 
@@ -153,9 +154,9 @@ Prediction error drives:
 
 ### 2.2 Attention & Routing
 
-* Salience computation (Δ appearance, Δ motion, prediction error)
+* Salience computation (Î” appearance, Î” motion, prediction error)
 * WTA selection (1 object per attention tick)
-* Inhibition‑of‑return (prevents fixation)
+* Inhibitionâ€‘ofâ€‘return (prevents fixation)
 
 ### 2.3 Representation Stack
 
@@ -171,26 +172,33 @@ Prediction error drives:
 * Tracking (object permanence)
 * Slowness / trace rules
 * Motion prototypes
-* Optional recurrence (GRU/LSTM → SNN later)
+* Optional recurrence (GRU/LSTM â†’ SNN later)
 
 ### 2.5 Graph Memory
 
 * Dynamic DAG (NetworkX initially)
 * Nodes: features, parts, objects, motions, categories
-* Edges: co‑occurs, part‑of, predicts, transitions
+* Edges: coâ€‘occurs, partâ€‘of, predicts, transitions
 
 ---
 
 ## 3. Development Phases (Strict Order)
 
-### Phase 1 — Frame Pipeline & BBP Generator
+> **Stage-numbering note:** this older conceptual phase outline is retained as
+> research context. PR order and executable stage numbers are defined by
+> `docs/PHASED_PLAN.md`; in particular, current Stage 2 is attention, Stage 3 is
+> cheap attended-crop embeddings, Stage 8 is K-slot working memory, and Stage 9
+> is tracking. Do not use the legacy phase numbers below to name implementation
+> PRs.
+
+### Phase 1 â€” Frame Pipeline & BBP Generator
 
 **Goal:** Deterministic, stable percept stream
 
 **Deliverables**
 
-* Video → frames
-* YOLO → boxes
+* Video â†’ frames
+* YOLO â†’ boxes
 * BBP data structure
 
 **Tests**
@@ -201,7 +209,7 @@ Prediction error drives:
 
 ---
 
-### Phase 2 — Static Feature Learning (No Tracking)
+### Phase 2 â€” Static Feature Learning (No Tracking)
 
 **Goal:** Learn sparse, stable visual features
 
@@ -209,7 +217,7 @@ Prediction error drives:
 
 * Patch sampling from BBPs
 * WTA competition
-* Hebbian / predictive‑coding updates
+* Hebbian / predictiveâ€‘coding updates
 * Weight normalization + homeostasis
 
 **Tests**
@@ -220,14 +228,14 @@ Prediction error drives:
 
 ---
 
-### Phase 3 — Part Formation
+### Phase 3 â€” Part Formation
 
-**Goal:** Build mid‑level structure
+**Goal:** Build midâ€‘level structure
 
 **Mechanisms**
 
-* Co‑activation Hebbian learning
-* Part‑of edges
+* Coâ€‘activation Hebbian learning
+* Partâ€‘of edges
 
 **Tests**
 
@@ -236,26 +244,26 @@ Prediction error drives:
 
 ---
 
-### Phase 4 — Object Prototype Formation (Static Identity)
+### Phase 4 â€” Object Prototype Formation (Static Identity)
 
 **Goal:** Stable object identity without motion learning
 
 **Mechanisms**
 
 * Online prototype clustering
-* Error‑gated averaging
-* Novelty‑based spawning
+* Errorâ€‘gated averaging
+* Noveltyâ€‘based spawning
 * Habituation
 
 **Tests**
 
-* Same object → same prototype
+* Same object â†’ same prototype
 * Prototype count bounded
 * Familiarity reduces error
 
 ---
 
-### Phase 5 — Tracking & Slowness (First Temporal Learning)
+### Phase 5 â€” Tracking & Slowness (First Temporal Learning)
 
 **Goal:** Object permanence and invariance
 
@@ -272,15 +280,15 @@ Prediction error drives:
 
 ---
 
-### Phase 6 — Motion Prototypes
+### Phase 6 â€” Motion Prototypes
 
-**Goal:** Learn motion as first‑class percepts
+**Goal:** Learn motion as firstâ€‘class percepts
 
 **Mechanisms**
 
-* Motion vectors (Δx, Δy, Δscale)
+* Motion vectors (Î”x, Î”y, Î”scale)
 * Motion prototype clustering
-* Object ↔ motion associations
+* Object â†” motion associations
 
 **Tests**
 
@@ -289,25 +297,25 @@ Prediction error drives:
 
 ---
 
-### Phase 7 — Recurrence (Optional, Only If Needed)
+### Phase 7 â€” Recurrence (Optional, Only If Needed)
 
 #### 7a. GRU / LSTM
 
-* Per‑track temporal buffers
+* Perâ€‘track temporal buffers
 * Predict next embedding / motion
 
 #### 7b. Spiking / STDP (Advanced)
 
-* Event‑driven temporal binding
+* Eventâ€‘driven temporal binding
 * WTA + homeostatic STDP
 
 **Entry condition:** Trace/slowness insufficient
 
 ---
 
-### Phase 8 — Category & Concept Formation
+### Phase 8 â€” Category & Concept Formation
 
-**Goal:** Higher‑level abstraction
+**Goal:** Higherâ€‘level abstraction
 
 **Mechanisms**
 
@@ -327,14 +335,14 @@ Prediction error drives:
 ### 4.1 Hebbian Core
 
 ```
-Δw_ij = η · a_i · a_j · gate
+Î”w_ij = Î· Â· a_i Â· a_j Â· gate
 ```
 
 ### 4.2 Decay (Forgetting)
 
 * Node strength decay
 * Edge weight decay
-* Multi‑timescale decay
+* Multiâ€‘timescale decay
 
 ### 4.3 Homeostasis
 
@@ -345,18 +353,18 @@ Prediction error drives:
 
 | Condition                    | Effect                       |
 | ---------------------------- | ---------------------------- |
-| Repeated accurate prediction | ↓ learning rate, ↓ salience  |
-| Sudden error spike           | ↑ learning rate, ↑ attention |
+| Repeated accurate prediction | â†“ learning rate, â†“ salience  |
+| Sudden error spike           | â†‘ learning rate, â†‘ attention |
 
 ---
 
-## 5. Dual Processing: Top‑Down Prediction Loop
+## 5. Dual Processing: Topâ€‘Down Prediction Loop
 
-### Bottom‑Up
+### Bottomâ€‘Up
 
-* BBP embedding → nearest prototype
+* BBP embedding â†’ nearest prototype
 
-### Top‑Down
+### Topâ€‘Down
 
 * Prototype predicts expected features
 * Decoder or identity mapping
@@ -373,9 +381,9 @@ Prediction error drives:
 
 ## 6. Attention Model (Consciousness Analogue)
 
-* Compute priority = novelty × error × motion
-* WTA selection (top‑1)
-* Inhibition‑of‑return
+* Compute priority = novelty Ã— error Ã— motion
+* WTA selection (topâ€‘1)
+* Inhibitionâ€‘ofâ€‘return
 * Only attended item gets full plasticity
 
 This enforces **serial symbolic binding** atop parallel perception.
@@ -462,15 +470,16 @@ tests/
 
 * Continual
 * Online
-* Pre‑symbolic → symbolic
+* Preâ€‘symbolic â†’ symbolic
 * Biologically inspired but engineered
 
 **Is Not**
 
-* End‑to‑end supervised retraining
-* Label‑centric
-* Dataset‑bound
+* Endâ€‘toâ€‘end supervised retraining
+* Labelâ€‘centric
+* Datasetâ€‘bound
 
 ---
 
-**End of document — ready for implementation and iterative refinement.**
+**End of document â€” ready for implementation and iterative refinement.**
+
