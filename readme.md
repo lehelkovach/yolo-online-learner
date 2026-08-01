@@ -61,6 +61,7 @@ python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
 
 - `docs/HANDOFF.md`: local handoff checklist + reproducibility notes
 - `docs/PHASED_PLAN.md`: minimal staged plan (least dependency first)
+- `docs/COGNITIVE_ARCHITECTURE_MAP.md`: consolidated architecture, research hypotheses, and experiment gates
 - `docs/DEBUGGING.md`: debugging + refactor guidance
 - `docs/OBS_SETUP.md`: OBS recording setup for studies
 - `docs/REFERENCE_REPOS.md`: reference repos/libraries to fork or borrow from
@@ -182,6 +183,13 @@ Prediction error drives:
 ---
 
 ## 3. Development Phases (Strict Order)
+
+> **Stage-numbering note:** this older conceptual phase outline is retained as
+> research context. PR order and executable stage numbers are defined by
+> `docs/PHASED_PLAN.md`; in particular, current Stage 2 is attention, Stage 3 is
+> cheap attended-crop embeddings, Stage 8 is K-slot working memory, and Stage 9
+> is tracking. Do not use the legacy phase numbers below to name implementation
+> PRs.
 
 ### Phase 1 — Frame Pipeline & BBP Generator
 
@@ -474,3 +482,4 @@ tests/
 ---
 
 **End of document — ready for implementation and iterative refinement.**
+
