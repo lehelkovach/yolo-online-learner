@@ -2,6 +2,11 @@
 
 Design goal: add **one mechanism at a time**, keep interfaces stable, and make each stage publishable via logged metrics.
 
+Active work-order note: the current explicit handoff is
+`Stage 2 -> Stage 3 -> Stage 4 -> Stage 5 -> Stage 8 -> thin KSG writer`.
+Stages 6 and 7 retain their numbers below but are intentionally deferred; they
+are not prerequisites for the current work order.
+
 ### Stage 0 — Experiment harness (reproducibility)
 
 - Add a session runner that emits JSONL.
@@ -43,9 +48,11 @@ Design goal: add **one mechanism at a time**, keep interfaces stable, and make e
 - Store nodes/edges; decay + prune keeps it sparse.
 - Tests: edge count remains bounded over long runs.
 
-### Stage 8 — Working memory (few active objects)
+### Stage 8 — Working memory (few expected concepts)
 
-- K-slot working memory; cue-based loading; eviction by utility/recency/error.
+- K-slot working memory of expected prototype/concept references; cue-based
+  loading; eviction by utility/recency/error. Physical object files begin only
+  after Stage 9 tracking.
 - Tests: WM capacity never exceeded; cueing reloads prior objects.
 
 ### Stage 9 — Tracking + motion

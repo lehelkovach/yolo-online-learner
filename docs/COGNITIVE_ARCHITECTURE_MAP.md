@@ -362,6 +362,7 @@ recommendations.
 |---|---|
 | Current YOPL/Codex conversation | fixed architecture; stage order; BBP semantics; labels as aliases; Hebbian/Oja safeguards; webcam/video/robot path |
 | “Cognitive Architecture for Robo Maid” | foveated iris, attention jitter, top-down saccades, developmental plasticity, social imitation, hive-mind sharing, module-by-module experiments |
+| `YOLO_ONLINE_LEARNER_REVISED_ARCHITECTURE_RESEARCH_HANDOFF.md` (`085E5FC0…719`) | YHGP/YOLO-POT-HG, three rate lanes, PDS-ST2-GWB registers, BCF, category baselines, typed Hebbian graph, KSG consolidation, active perception, Helper-lite gates |
 | “KSG Vision and Potential” | KSG as stable semantic/procedural memory and model-independent agent substrate |
 | “KnowShowGo and Foundation Models” | evidence/provenance/versioning, curator proposal boundary, deterministic ingestion first, durable model-independent LTM |
 | “Python Learning Approach” | names as bindings distinct from referent identity |
@@ -371,10 +372,10 @@ recommendations.
 | Repository canon and legacy research notes | hierarchy, dual processing, Hebbian graph, habituation/sensitization, object permanence, motion/events, optional SNN/STDP |
 
 The Codex app exposed the 50 most recent non-pinned sessions plus pinned sessions
-for this audit. The dedicated Robo Maid session reports a larger recovered handoff
+for the initial audit. The dedicated Robo Maid session reported a larger handoff
 covering YHGP, YOLO-POT-HG, BCF, PDS-ST2-GWB, attention registers, SNN/STDP, CPMS,
-OSL, and KSG, but the linked handoff artifact itself was not exposed through the
-thread reader. Those names are preserved above without inventing missing details.
-Import that source artifact before claiming a verbatim, exhaustive historical
-specification.
+OSL, and KSG. The user subsequently supplied that source artifact; it was read in
+full and reconciled in `docs/RESEARCH_HANDOFF_RECONCILIATION.md`. Its repository
+state and milestone order are historical, so they do not silently override the
+current canonical stage plan.
 
