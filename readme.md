@@ -57,6 +57,16 @@ python scripts/run_bbp_stream.py --source 0 --save-jsonl outputs/bbps.jsonl --ma
 python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
 ```
 
+### Observe BBPs and attention live
+
+```bash
+python experiments/run.py --source 0 --max-frames 3000 --output-dir outputs --preview
+```
+
+Raw BBP hypotheses use thin dashed cyan boxes. The one WTA-attended BBP gets an
+amber corner reticle. Press `q` or Escape to stop cleanly. These styles show
+detection and attention only; learned prototype strength arrives in Stage 4.
+
 ## Docs
 
 - `docs/HANDOFF.md`: local handoff checklist + reproducibility notes

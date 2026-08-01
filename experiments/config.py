@@ -21,4 +21,4 @@ class ExperimentConfig:
     yolo_iou: float = 0.7
     # Output folder relative to repo root.
     output_dir: str = "outputs"
-
+    preview: bool = False

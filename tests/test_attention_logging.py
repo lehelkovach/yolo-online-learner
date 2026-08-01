@@ -123,3 +123,66 @@ def test_run_session_logs_no_selection_embedding_schema(
         "raw_norm": None,
         "crop_xyxy": None,
     }
+
+
+def test_run_session_preview_observes_logged_winner_and_quits_cleanly(
+    monkeypatch: object, tmp_path: Path
+) -> None:
+    instances: list[object] = []
+
+    class _FakePreview:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, object]] = []
+            self.closed = False
+            instances.append(self)
+
+        def show(self, frame: object, bbps: list[BBP], **kwargs: object) -> bool:
+            self.calls.append(kwargs)
+            return False
+
+        def close(self) -> None:
+            self.closed = True
+
+    monkeypatch.setattr(run_module, "YoloBbpGenerator", _FakeGenerator)
+    monkeypatch.setattr(run_module, "OpenCvPreview", _FakePreview)
+    monkeypatch.setattr(
+        run_module,
+        "iter_frames",
+        lambda *args, **kwargs: iter(
+            [Frame(0, 0.0, np.zeros((12, 12, 3), dtype=np.uint8))]
+        ),
+    )
+
+    output = run_module.run_session(
+        ExperimentConfig(max_frames=10, output_dir=str(tmp_path), preview=True)
+    )
+    events = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+    frame_event = next(event for event in events if event["event"] == "frame")
+    end_event = events[-1]
+    preview = instances[0]
+
+    assert preview.calls[0]["selected_bbp_index"] == frame_event["attention"][
+        "selected_bbp_index"
+    ]
+    assert preview.closed is True
+    assert end_event == {"event": "session_end", "stop_reason": "operator_quit"}
+
+
+def test_run_session_without_preview_never_constructs_window(
+    monkeypatch: object, tmp_path: Path
+) -> None:
+    def _unexpected_preview() -> object:
+        raise AssertionError("preview should stay disabled")
+
+    monkeypatch.setattr(run_module, "YoloBbpGenerator", _EmptyGenerator)
+    monkeypatch.setattr(run_module, "OpenCvPreview", _unexpected_preview)
+    monkeypatch.setattr(run_module, "iter_frames", lambda *args, **kwargs: iter([]))
+
+    output = run_module.run_session(
+        ExperimentConfig(max_frames=0, output_dir=str(tmp_path), preview=False)
+    )
+    events = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+
+    assert "preview" not in events[0]["config"]
+    assert "preview_enabled" not in events[0]
+    assert events[-1] == {"event": "session_end"}
