@@ -6,7 +6,7 @@ import os
 import random
 import sys
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +15,11 @@ if str(_REPO_ROOT) not in sys.path:
 
 from attention.scheduler import AttentionScheduler, empty_attention_metrics  # noqa: E402
 from experiments.config import ExperimentConfig  # noqa: E402
+from features.simple_embedding import (  # noqa: E402
+    attended_embedding_metrics,
+    embed_attended_crop,
+    simple_embedding_schema,
+)
 from perception.video import iter_frames  # noqa: E402
 from perception.yolo_adapter import YoloBbpGenerator  # noqa: E402
 
@@ -40,7 +45,16 @@ def run_session(cfg: ExperimentConfig) -> Path:
     attention = AttentionScheduler()
 
     with out_path.open("w", encoding="utf-8") as f:
-        f.write(json.dumps({"event": "session_start", "config": asdict(cfg)}) + "\n")
+        f.write(
+            json.dumps(
+                {
+                    "event": "session_start",
+                    "config": asdict(cfg),
+                    "embedding_schema": simple_embedding_schema(),
+                }
+            )
+            + "\n"
+        )
 
         for fr in iter_frames(cfg.source, stride=cfg.stride, max_frames=cfg.max_frames):
             bbps = gen.detect_bbps(
@@ -49,10 +63,27 @@ def run_session(cfg: ExperimentConfig) -> Path:
                 frame_bgr=fr.image,
             )
             selection = attention.select(bbps)
+            embedding_result = None
+            selected_bbp_index = None
+            if selection is not None:
+                selected_bbp_index = selection.bbp_index
+                embedding_result = embed_attended_crop(fr.image, selection.bbp.bbox)
+                if embedding_result is not None:
+                    enriched_bbp = replace(
+                        selection.bbp,
+                        embedding=embedding_result.vector,
+                    )
+                    bbps[selection.bbp_index] = enriched_bbp
+                    selection = replace(selection, bbp=enriched_bbp)
+
             attention_metrics = (
                 selection.to_metrics(len(bbps))
                 if selection is not None
                 else empty_attention_metrics()
+            )
+            embedding_metrics = attended_embedding_metrics(
+                embedding_result,
+                selected_bbp_index=selected_bbp_index,
             )
             f.write(
                 json.dumps(
@@ -62,6 +93,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
                         "timestamp_s": fr.timestamp_s,
                         "bbps": [b.to_dict() for b in bbps],
                         "attention": attention_metrics,
+                        "attended_embedding": embedding_metrics,
                     }
                 )
                 + "\n"
