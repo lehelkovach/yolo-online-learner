@@ -145,7 +145,7 @@ as a claim that the software reproduces child or animal development.
 
 Plasticity may start high at a new curriculum gate and slow when representations
 stabilize. Changes in learning rate must be driven by logged evidence such as
-observation count, dispersion, prediction error, and correction historyâ€”not by a
+observation count, dispersion, prediction error, and correction history—not by a
 hard-coded story about chronological age. Teacher feedback may reopen plasticity
 for a corrected concept.
 
@@ -228,7 +228,7 @@ layer with local overlays:
 - Shared winners never silently overwrite local experience. Promotion requires
   reproducible evidence, validation policy, versioning, rollback, and trust scope.
 
-This gives a concrete meaning to â€œgenetic winnersâ€ and â€œmemetic plasticityâ€:
+This gives a concrete meaning to “genetic winners” and “memetic plasticity”:
 the inherited artifact is a tested prior or recipe; local learning remains
 plastic; accepted corrections can later compete for a new shared version.
 
@@ -280,7 +280,7 @@ KSG failure or network loss must not affect safe stopping.
 
 The first useful robotics result is a tabletop cleaning demonstration in
 simulation with a known tool, bounded surface, nonhazardous synthetic mess, and
-human approvalâ€”not autonomous kitchen operation. Hardware begins only after the
+human approval—not autonomous kitchen operation. Hardware begins only after the
 simulation exit gates pass, with supervised low-speed commissioning and an
 independently tested stop path.
 
@@ -361,13 +361,13 @@ recommendations.
 | Source available during this audit | Contribution retained here |
 |---|---|
 | Current YOPL/Codex conversation | fixed architecture; stage order; BBP semantics; labels as aliases; Hebbian/Oja safeguards; webcam/video/robot path |
-| â€œCognitive Architecture for Robo Maidâ€ | foveated iris, attention jitter, top-down saccades, developmental plasticity, social imitation, hive-mind sharing, module-by-module experiments |
-| â€œKSG Vision and Potentialâ€ | KSG as stable semantic/procedural memory and model-independent agent substrate |
-| â€œKnowShowGo and Foundation Modelsâ€ | evidence/provenance/versioning, curator proposal boundary, deterministic ingestion first, durable model-independent LTM |
-| â€œPython Learning Approachâ€ | names as bindings distinct from referent identity |
-| â€œTech Design Doc Draftâ€ | consolidate with provenance; trim obsolete ideas; integrate against the real public client API |
-| â€œYOLO-Online-Learner Statusâ€ | implementation-status evidence only; no new user mechanism |
-| â€œDog vs Horse Intelligenceâ€ | reviewed; no user-originated YOPL mechanism |
+| “Cognitive Architecture for Robo Maid” | foveated iris, attention jitter, top-down saccades, developmental plasticity, social imitation, hive-mind sharing, module-by-module experiments |
+| “KSG Vision and Potential” | KSG as stable semantic/procedural memory and model-independent agent substrate |
+| “KnowShowGo and Foundation Models” | evidence/provenance/versioning, curator proposal boundary, deterministic ingestion first, durable model-independent LTM |
+| “Python Learning Approach” | names as bindings distinct from referent identity |
+| “Tech Design Doc Draft” | consolidate with provenance; trim obsolete ideas; integrate against the real public client API |
+| “YOLO-Online-Learner Status” | implementation-status evidence only; no new user mechanism |
+| “Dog vs Horse Intelligence” | reviewed; no user-originated YOPL mechanism |
 | Repository canon and legacy research notes | hierarchy, dual processing, Hebbian graph, habituation/sensitization, object permanence, motion/events, optional SNN/STDP |
 
 The Codex app exposed the 50 most recent non-pinned sessions plus pinned sessions
