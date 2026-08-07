@@ -74,8 +74,9 @@ detection and attention only; prototype-bank novelty is logged in JSONL under
 - `docs/PHASED_PLAN.md`: minimal staged plan (least dependency first)
 - `docs/COGNITIVE_ARCHITECTURE_MAP.md`: consolidated architecture, research hypotheses, and experiment gates
 - `docs/RESEARCH_HANDOFF_RECONCILIATION.md`: crosswalk from the revised research handoff to the canonical stage plan
+- `docs/DEVELOPMENTAL_COGNITION_CODING_AGENT_HANDOFF.md`: ST² / SNN A-B / attention-register coding-agent directive (reconciled; does not replace PHASED_PLAN)
 - `docs/DEBUGGING.md`: debugging + refactor guidance
-- `docs/OBS_SETUP.md`: OBS recording setup for studies
+- `docs/OBS_SETUP.md`: OBS + laptop Virtual Camera session setup
 - `docs/REFERENCE_REPOS.md`: reference repos/libraries to fork or borrow from
 
 ## 0. Executive Summary

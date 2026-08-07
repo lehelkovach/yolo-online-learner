@@ -27,7 +27,10 @@ When documents disagree, use this order for implementation decisions:
 4. `docs/COGNITIVE_ARCHITECTURE_MAP.md` for the reconciled runtime design,
    research hypotheses, and longer experiment ladder.
 5. This document for the mapping from the revised research handoff.
-6. The older conceptual phase outline in `readme.md` and legacy branches as
+6. `docs/DEVELOPMENTAL_COGNITION_CODING_AGENT_HANDOFF.md` for the 2026-08-07
+   ST² / SNN A-B / attention-register developmental program (research directive;
+   does not reorder PHASED_PLAN).
+7. The older conceptual phase outline in `readme.md` and legacy branches as
    research context.
 
 The current implementation sequence remains:
@@ -360,6 +363,10 @@ synthetic deterministic frames
   it is biologically inspired.
 
 ## 8. Next actions
+
+Related 2026-08-07 consolidation:
+`docs/DEVELOPMENTAL_COGNITION_CODING_AGENT_HANDOFF.md` (SNN A/B after ConvGRU
+reference; PDS–ST²–GWB register evolution; track/object files remain Stage 9).
 
 1. Reproduce the direct CLI entrypoint issue named above and, if confirmed, land
    the narrow import fix as its own PR without reopening Phase 1. **Done** (PR #6).

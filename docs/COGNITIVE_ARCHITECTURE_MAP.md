@@ -1,13 +1,16 @@
 # YOPL cognitive architecture and experiment map
 
 **Status:** design map, not an implementation claim  
-**Updated:** 2026-07-31  
+**Updated:** 2026-08-07  
 **Canonical build order:** `docs/PHASED_PLAN.md`
 
 This document consolidates the YOPL ideas recovered from the repository and the
 relevant project conversations. It separates the architecture we have committed
 to build from hypotheses that still need experiments and from the longer-term
-Helper-style robotics program.
+Helper-style robotics program. For the 2026-08-07 ST² / SNN A-B / attention-register
+coding-agent directive, see
+`docs/DEVELOPMENTAL_COGNITION_CODING_AGENT_HANDOFF.md` (does not replace this map
+or PHASED_PLAN numbering).
 
 The governing engineering rule is unchanged: **one mechanism per PR, with tests
 and JSONL metrics**. An idea appearing here does not mean it exists on `main`.

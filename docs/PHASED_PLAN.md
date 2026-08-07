@@ -7,6 +7,11 @@ Active work-order note: the current explicit handoff is
 Stages 6 and 7 retain their numbers below but are intentionally deferred; they
 are not prerequisites for the current work order.
 
+Longer developmental / ST² / SNN research program (A/B branches, attention
+registers, event-camera ladder): see
+`docs/DEVELOPMENTAL_COGNITION_CODING_AGENT_HANDOFF.md`. That doc must not reorder
+these PR stages without an explicit user gate.
+
 ### Stage 0 — Experiment harness (reproducibility)
 
 - Add a session runner that emits JSONL.
