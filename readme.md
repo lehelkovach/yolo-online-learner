@@ -65,7 +65,8 @@ python experiments/run.py --source 0 --max-frames 3000 --output-dir outputs --pr
 
 Raw BBP hypotheses use thin dashed cyan boxes. The one WTA-attended BBP gets an
 amber corner reticle. Press `q` or Escape to stop cleanly. These styles show
-detection and attention only; learned prototype strength arrives in Stage 4.
+detection and attention only; prototype-bank novelty is logged in JSONL under
+`prototype_bank` (Stage 4). Preview strength visualization can come later.
 
 ## Docs
 
@@ -73,8 +74,9 @@ detection and attention only; learned prototype strength arrives in Stage 4.
 - `docs/PHASED_PLAN.md`: minimal staged plan (least dependency first)
 - `docs/COGNITIVE_ARCHITECTURE_MAP.md`: consolidated architecture, research hypotheses, and experiment gates
 - `docs/RESEARCH_HANDOFF_RECONCILIATION.md`: crosswalk from the revised research handoff to the canonical stage plan
+- `docs/DEVELOPMENTAL_COGNITION_CODING_AGENT_HANDOFF.md`: ST² / SNN A-B / attention-register coding-agent directive (reconciled; does not replace PHASED_PLAN)
 - `docs/DEBUGGING.md`: debugging + refactor guidance
-- `docs/OBS_SETUP.md`: OBS recording setup for studies
+- `docs/OBS_SETUP.md`: OBS + laptop Virtual Camera session setup
 - `docs/REFERENCE_REPOS.md`: reference repos/libraries to fork or borrow from
 
 ## 0. Executive Summary

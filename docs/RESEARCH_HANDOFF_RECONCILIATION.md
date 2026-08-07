@@ -27,28 +27,33 @@ When documents disagree, use this order for implementation decisions:
 4. `docs/COGNITIVE_ARCHITECTURE_MAP.md` for the reconciled runtime design,
    research hypotheses, and longer experiment ladder.
 5. This document for the mapping from the revised research handoff.
-6. The older conceptual phase outline in `readme.md` and legacy branches as
+6. `docs/DEVELOPMENTAL_COGNITION_CODING_AGENT_HANDOFF.md` for the 2026-08-07
+   ST² / SNN A-B / attention-register developmental program (research directive;
+   does not reorder PHASED_PLAN).
+7. The older conceptual phase outline in `readme.md` and legacy branches as
    research context.
 
-The current implementation sequence remains:
+The current implementation sequence remains (see `docs/PHASED_PLAN.md` for full
+text; revised 2026-08-07):
 
 ```text
-Stage 2 attention (merged)
-  -> Stage 3 cheap attended-crop embeddings
-  -> Stage 4 bounded prototype bank and genuine novelty
-  -> Stage 5 top-down expected embeddings and prediction error
+Stage 4 pattern prototypes
+  -> Stage 5 prediction error
+  -> Stage 5b attention-gated plasticity
   -> Stage 8 K-slot working memory
-  -> thin KSG visual match/generalize/exemplar writer
-  -> Stage 9 tracking/object files
-  -> richer categories, events, active perception, imitation, and robotics
+  -> thin KSG visual writer
+  -> Stage 9 tracking / object files / permanence
+  -> Stage 6 habituation / sensitization
+  -> Stage 7 typed Hebbian graph
+  -> Stage 9b instance / category prototypes
+  -> Stage 10a ConvGRU reference
+  -> Stage 10b SNN A/B (not SNN-only)
+  -> events / active vision / event-camera ladder
 ```
 
 Each mechanism still requires its own PR, tests, deterministic replay where
-applicable, and JSONL metrics.
-
-Stages 6 and 7 retain their canonical numbers but are intentionally deferred by
-the active user work order; they are not prerequisites for Stage 8 or the thin
-KSG writer.
+applicable, and JSONL metrics. Stages 6 and 7 stay numbered but follow Stage 9
+in the default revised track so permanence lands before rich graph growth.
 
 ## 2. Repository-state correction
 
@@ -361,11 +366,19 @@ synthetic deterministic frames
 
 ## 8. Next actions
 
+Related 2026-08-07 consolidation:
+`docs/DEVELOPMENTAL_COGNITION_CODING_AGENT_HANDOFF.md` (SNN A/B after ConvGRU
+reference; PDS–ST²–GWB register evolution; track/object files remain Stage 9).
+
 1. Reproduce the direct CLI entrypoint issue named above and, if confirmed, land
-   the narrow import fix as its own PR without reopening Phase 1.
-2. Complete Stage 3 as the smallest deterministic embedding experiment.
+   the narrow import fix as its own PR without reopening Phase 1. **Done** (PR #6).
+2. Complete Stage 3 as the smallest deterministic embedding experiment. **Done**
+   (PR #7).
 3. In Stage 4, keep the first prototype bank transparent and bounded; specify
    ART/SUSTAIN/DP-means comparisons without combining them into the same PR.
+   **In progress on main path:** `objects/prototype_bank.py` implements the
+   bounded match/spawn baseline (`normalized_running_mean_v1`); ART/SUSTAIN/
+   DP-means remain separate later experiments.
 4. In Stage 5, run repetition and distribution-shift tests for genuine prediction
    error.
 5. Add K-slot WM at Stage 8, then the thin visual KSG writer with durability tests.

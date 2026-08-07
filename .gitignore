@@ -11,4 +11,5 @@ build/
 .DS_Store
 outputs/
 *.jsonl
+.tmp_pytest/
 

@@ -21,6 +21,11 @@ from features.simple_embedding import (  # noqa: E402
     embed_attended_crop,
     simple_embedding_schema,
 )
+from objects.prototype_bank import (  # noqa: E402
+    PrototypeBank,
+    PrototypeBankConfig,
+    prototype_bank_schema,
+)
 from perception.video import iter_frames  # noqa: E402
 from perception.yolo_adapter import YoloBbpGenerator  # noqa: E402
 
@@ -48,6 +53,14 @@ def run_session(cfg: ExperimentConfig) -> Path:
         if cfg.preview:
             preview = OpenCvPreview()
         attention = AttentionScheduler()
+        bank_config = PrototypeBankConfig(
+            kmax=cfg.prototype_kmax,
+            match_threshold=cfg.prototype_match_threshold,
+            spawn_cooldown_frames=cfg.prototype_spawn_cooldown_frames,
+            novelty_hysteresis=cfg.prototype_novelty_hysteresis,
+            learning_enabled=cfg.prototype_learning,
+        )
+        prototype_bank = PrototypeBank(bank_config)
         stop_reason = "completed"
 
         with out_path.open("w", encoding="utf-8") as f:
@@ -58,6 +71,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
                 "event": "session_start",
                 "config": config_metrics,
                 "embedding_schema": simple_embedding_schema(),
+                "prototype_bank_schema": prototype_bank_schema(bank_config),
             }
             if cfg.preview:
                 start_event["preview_enabled"] = True
@@ -75,13 +89,23 @@ def run_session(cfg: ExperimentConfig) -> Path:
                 selection = attention.select(bbps)
                 embedding_result = None
                 selected_bbp_index = None
+                bank_metrics = prototype_bank.idle_metrics(status="no_selection")
                 if selection is not None:
                     selected_bbp_index = selection.bbp_index
                     embedding_result = embed_attended_crop(fr.image, selection.bbp.bbox)
+                    embedding_vector = (
+                        None if embedding_result is None else embedding_result.vector
+                    )
+                    bank_metrics = prototype_bank.observe(
+                        embedding_vector,
+                        frame_idx=fr.frame_idx,
+                    )
                     if embedding_result is not None:
+                        novelty = bank_metrics["novelty"]
                         enriched_bbp = replace(
                             selection.bbp,
                             embedding=embedding_result.vector,
+                            novelty=None if novelty is None else float(novelty),
                         )
                         bbps[selection.bbp_index] = enriched_bbp
                         selection = replace(selection, bbp=enriched_bbp)
@@ -104,6 +128,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
                             "bbps": [b.to_dict() for b in bbps],
                             "attention": attention_metrics,
                             "attended_embedding": embedding_metrics,
+                            "prototype_bank": bank_metrics,
                         }
                     )
                     + "\n"
@@ -142,6 +167,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--yolo-conf", type=float, default=0.25)
     p.add_argument("--yolo-iou", type=float, default=0.7)
     p.add_argument("--preview", action="store_true", help="Show live BBPs and WTA attention")
+    p.add_argument("--prototype-kmax", type=int, default=32)
+    p.add_argument("--prototype-match-threshold", type=float, default=0.85)
+    p.add_argument("--prototype-spawn-cooldown-frames", type=int, default=5)
+    p.add_argument("--prototype-novelty-hysteresis", type=int, default=2)
+    p.add_argument(
+        "--no-prototype-learning",
+        action="store_true",
+        help="Freeze the Stage-4 prototype bank (non-learning baseline)",
+    )
     args = p.parse_args(argv)
 
     try:
@@ -160,6 +194,11 @@ def main(argv: list[str] | None = None) -> int:
         yolo_iou=args.yolo_iou,
         preview=args.preview,
         output_dir=args.output_dir,
+        prototype_kmax=args.prototype_kmax,
+        prototype_match_threshold=args.prototype_match_threshold,
+        prototype_spawn_cooldown_frames=args.prototype_spawn_cooldown_frames,
+        prototype_novelty_hysteresis=args.prototype_novelty_hysteresis,
+        prototype_learning=not args.no_prototype_learning,
     )
     out_path = run_session(cfg)
     print(str(out_path))

@@ -22,3 +22,9 @@ class ExperimentConfig:
     # Output folder relative to repo root.
     output_dir: str = "outputs"
     preview: bool = False
+    # Stage-4 prototype bank (perceptual patterns, not objects/tracks).
+    prototype_kmax: int = 32
+    prototype_match_threshold: float = 0.85
+    prototype_spawn_cooldown_frames: int = 5
+    prototype_novelty_hysteresis: int = 2
+    prototype_learning: bool = True

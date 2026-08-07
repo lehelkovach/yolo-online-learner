@@ -58,6 +58,12 @@ def test_run_session_logs_attention_metrics(monkeypatch: object, tmp_path: Path)
     start_event = events[0]
     assert start_event["embedding_schema"]["embedding_space_id"] == "simple_crop_v1"
     assert start_event["embedding_schema"]["scope"] == "wta_winner_only"
+    assert start_event["prototype_bank_schema"]["update_rule_id"] == "normalized_running_mean_v1"
+    assert start_event["prototype_bank_schema"]["identity"] == "perceptual_pattern"
+    assert frame_event["prototype_bank"]["status"] == "ok"
+    assert frame_event["prototype_bank"]["spawned"] is True
+    assert frame_event["prototype_bank"]["prototype_count"] == 1
+    assert frame_event["bbps"][0]["novelty"] == pytest.approx(1.0)
 
 
 class _TwoBbpGenerator(_FakeGenerator):
@@ -122,6 +128,16 @@ def test_run_session_logs_no_selection_embedding_schema(
         "norm": None,
         "raw_norm": None,
         "crop_xyxy": None,
+    }
+    assert frame_event["prototype_bank"] == {
+        "status": "no_selection",
+        "prototype_count": 0,
+        "match_id": None,
+        "match_similarity": None,
+        "novelty": None,
+        "spawned": False,
+        "evicted": False,
+        "bank_full": False,
     }
 
 
