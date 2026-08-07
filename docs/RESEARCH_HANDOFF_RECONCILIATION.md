@@ -33,25 +33,27 @@ When documents disagree, use this order for implementation decisions:
 7. The older conceptual phase outline in `readme.md` and legacy branches as
    research context.
 
-The current implementation sequence remains:
+The current implementation sequence remains (see `docs/PHASED_PLAN.md` for full
+text; revised 2026-08-07):
 
 ```text
-Stage 2 attention (merged)
-  -> Stage 3 cheap attended-crop embeddings
-  -> Stage 4 bounded prototype bank and genuine novelty
-  -> Stage 5 top-down expected embeddings and prediction error
+Stage 4 pattern prototypes
+  -> Stage 5 prediction error
+  -> Stage 5b attention-gated plasticity
   -> Stage 8 K-slot working memory
-  -> thin KSG visual match/generalize/exemplar writer
-  -> Stage 9 tracking/object files
-  -> richer categories, events, active perception, imitation, and robotics
+  -> thin KSG visual writer
+  -> Stage 9 tracking / object files / permanence
+  -> Stage 6 habituation / sensitization
+  -> Stage 7 typed Hebbian graph
+  -> Stage 9b instance / category prototypes
+  -> Stage 10a ConvGRU reference
+  -> Stage 10b SNN A/B (not SNN-only)
+  -> events / active vision / event-camera ladder
 ```
 
 Each mechanism still requires its own PR, tests, deterministic replay where
-applicable, and JSONL metrics.
-
-Stages 6 and 7 retain their canonical numbers but are intentionally deferred by
-the active user work order; they are not prerequisites for Stage 8 or the thin
-KSG writer.
+applicable, and JSONL metrics. Stages 6 and 7 stay numbered but follow Stage 9
+in the default revised track so permanence lands before rich graph growth.
 
 ## 2. Repository-state correction
 

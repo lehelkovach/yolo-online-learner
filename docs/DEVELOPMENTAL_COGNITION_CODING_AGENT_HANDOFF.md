@@ -32,30 +32,35 @@ When this document and other docs disagree, use this order for **implementation*
 
 ### Active executable build order (do not reorder without an explicit user gate)
 
+Source of truth: [`docs/PHASED_PLAN.md`](PHASED_PLAN.md) (revised 2026-08-07).
+
 ```text
-Stage 2 attention (merged)
-  -> Stage 3 cheap attended-crop embeddings (merged)
-  -> Stage 4 bounded prototype bank + genuine novelty (PR path)
-  -> Stage 5 top-down expected embeddings + prediction error
+Stage 4 pattern prototypes + novelty
+  -> Stage 5 prediction error
+  -> Stage 5b attention-gated plasticity ablations
   -> Stage 8 K-slot working memory
-  -> thin KSG visual match/generalize/exemplar writer
-  -> Stage 9 tracking / object files / permanence
-  -> richer categories, events, active vision, imitation, robotics
+  -> thin KSG visual writer
+  -> Stage 9 TrackToken / object files / permanence
+  -> Stage 6 habituation / sensitization
+  -> Stage 7 typed Hebbian graph (Hebb ⊥ anti-Hebb ⊥ decay ⊥ eligibility)
+  -> Stage 9b instance then category prototypes
+  -> Stage 10a ConvGRU temporal reference
+  -> Stage 10b SNN A/B (rate → latency → STDP → +adapt/+attention)
+  -> events / affordances / active vision / event-camera ladder
 ```
 
-Stages **6** (habituation/sensitization) and **7** (graph decay/pruning) keep their
-canonical numbers but remain **deferred** relative to Stage 8 / thin KSG unless the
-user reopens them.
+Stages **0–3** are done. Stage 2 may **evolve** toward PDS–ST²–GWB registers in
+optional PRs after Stage 5; do not rewrite the tested WTA baseline wholesale.
 
-**Critical reconciliation with this handoff’s “Immediate Development Order”:**
+**Critical reconciliation with older track-first / SNN-first instincts:**
 
-| This handoff’s instinct | Canonical decision |
+| Instinct | Decision in PHASED_PLAN |
 |---|---|
-| Track / object files early | **Deferred to Stage 9** after a track-free Stage 2–5 baseline |
-| Full PDS–ST²–GWB register stack next | Evolve **from** current `AttentionScheduler`; do not rewrite Stage 2 wholesale |
-| Hebbian graph soon | Canonical Stage **7** (deferred); thin typed updates may appear earlier only as separate PRs |
-| SNN as early branch | **After** non-spiking temporal/recurrent reference exists; never the only substrate |
-| Habituation first | Canonical Stage **6** (deferred) or a narrow switchable PR after Stage 5 metrics exist |
+| Track / object files early | **Stage 9** after track-free Stage 2–5 baseline |
+| Full PDS–ST²–GWB register stack next | Evolve **from** current `AttentionScheduler` after Stage 5 |
+| Hebbian graph soon | **Stage 7** after permanence (default) |
+| SNN as early branch | **Stage 10b** only after **10a** ConvGRU reference |
+| Habituation first | **Stage 6** after Stage 9 (default); feeds SNN thresholds |
 
 One mechanism per PR. Tests + JSONL metrics required. Aggressive ablation required.
 
@@ -907,20 +912,21 @@ canonical PHASED_PLAN numbers when opening PRs.
 
 ### Immediate coding-agent work order (executable now)
 
-1. **Land / stabilize Stage 4** prototype bank PR (tests + CI green).
-2. **Stage 5** — top-down expected embedding; replace `error_proxy` with real
-   prediction error; repetition + oddball/distribution-shift tests.
-3. **Stage 8** — K-slot WM of expected prototype/concept refs; capacity/eviction.
-4. **Thin KSG writer** — async contract, receipt, provenance, idempotency.
-5. **Pre-Stage-9** — `docs/BRANCH_RECONCILIATION.md` for OP + strategy remotes.
-6. **Stage 9** — tracker/object files; salvage `2576` behind an interface; occlusion
-   tests before multi-view categories.
-7. Only then schedule: Stage 6/7 if still deferred, attention-gated plasticity
-   ablations, ConvGRU temporal encoder, **then** SNN/STDP branch, events,
-   active vision, neuromorphic.
+Follow [`docs/PHASED_PLAN.md`](PHASED_PLAN.md) active work order. Short form:
+
+1. Land / stabilize **Stage 4** prototype bank (tests + CI green).
+2. **Stage 5** prediction error (replace `error_proxy`); repetition + oddball.
+3. **Stage 5b** attention-gated plasticity ablations (equal-compute).
+4. **Stage 8** K-slot WM; then **thin KSG** writer.
+5. Pre-Stage-9 `docs/BRANCH_RECONCILIATION.md`; then **Stage 9** tracker /
+   permanence (salvage `2576` behind an interface).
+6. **Stage 6** then **Stage 7** (habituation; typed Hebbian ⊥ anti-Hebbian ⊥ decay).
+7. **Stage 9b** instance/category; **Stage 10a** ConvGRU; **only then Stage 10b**
+   SNN/STDP A/B; then events / active vision / event-camera ladder.
 
 Do **not** connect live KSG or servo hardware until offline replay tests pass;
-mocks first.
+mocks first. Do **not** start SNN before a ConvGRU (or equivalent) reference on
+the same replay contract.
 
 ---
 
