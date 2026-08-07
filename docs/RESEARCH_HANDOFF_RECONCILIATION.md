@@ -362,10 +362,14 @@ synthetic deterministic frames
 ## 8. Next actions
 
 1. Reproduce the direct CLI entrypoint issue named above and, if confirmed, land
-   the narrow import fix as its own PR without reopening Phase 1.
-2. Complete Stage 3 as the smallest deterministic embedding experiment.
+   the narrow import fix as its own PR without reopening Phase 1. **Done** (PR #6).
+2. Complete Stage 3 as the smallest deterministic embedding experiment. **Done**
+   (PR #7).
 3. In Stage 4, keep the first prototype bank transparent and bounded; specify
    ART/SUSTAIN/DP-means comparisons without combining them into the same PR.
+   **In progress on main path:** `objects/prototype_bank.py` implements the
+   bounded match/spawn baseline (`normalized_running_mean_v1`); ART/SUSTAIN/
+   DP-means remain separate later experiments.
 4. In Stage 5, run repetition and distribution-shift tests for genuine prediction
    error.
 5. Add K-slot WM at Stage 8, then the thin visual KSG writer with durability tests.

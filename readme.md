@@ -65,7 +65,8 @@ python experiments/run.py --source 0 --max-frames 3000 --output-dir outputs --pr
 
 Raw BBP hypotheses use thin dashed cyan boxes. The one WTA-attended BBP gets an
 amber corner reticle. Press `q` or Escape to stop cleanly. These styles show
-detection and attention only; learned prototype strength arrives in Stage 4.
+detection and attention only; prototype-bank novelty is logged in JSONL under
+`prototype_bank` (Stage 4). Preview strength visualization can come later.
 
 ## Docs
 
