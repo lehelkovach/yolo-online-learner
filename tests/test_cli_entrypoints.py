@@ -30,3 +30,16 @@ def test_experiments_run_script_help() -> None:
     output = _help_output("experiments/run.py")
 
     assert "--preview" in output
+
+
+def test_experiments_run_script_exposes_memory_thresholds() -> None:
+    output = _help_output("experiments/run.py")
+
+    for flag in ("--match-threshold", "--reid-threshold", "--lost-after", "--max-prototypes"):
+        assert flag in output
+
+
+def test_experiments_replay_script_help() -> None:
+    output = _help_output("experiments/replay.py")
+
+    assert "session" in output
