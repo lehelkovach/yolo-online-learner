@@ -16,6 +16,11 @@ This repo now includes a minimal **Phase-1 scaffold**:
 - `perception/video.py`: video/camera frame iterator (OpenCV)
 - `perception/yolo_adapter.py`: Ultralytics YOLO adapter → BBPs
 - `scripts/run_bbp_stream.py`: CLI to stream BBPs and optionally write JSONL
+- `attention/scheduler.py`: WTA attention with inhibition-of-return
+- `features/encoder.py`: `PerceptEncoder` interface (+ `features/simple_embedding.py` baseline)
+- `objects/`: `ObjectFile`, `ObjectBinder`, `ObjectMemory` (visibility/permanence)
+- `memory/prototypes.py`: bounded prototype bank + memory-relative novelty
+- `experiments/replay.py`: replay a session JSONL and verify every decision reproduces
 
 ### Install
 
@@ -57,6 +62,17 @@ python scripts/run_bbp_stream.py --source 0 --save-jsonl outputs/bbps.jsonl --ma
 python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
 ```
 
+### Replay a session's cognitive trace
+
+```bash
+python experiments/replay.py outputs/session_seed0_<time>.jsonl
+```
+
+Every `frame` event carries `object_file`, `object_memory` and `learning` blocks
+(object-file binding, occlusion/loss state, memory-relative novelty). The replay
+tool rebuilds the memories from the logged config and seed, feeds the logged BBPs
+and embeddings back through them and reports any decision that does not reproduce.
+
 ### Observe BBPs and attention live
 
 ```bash
@@ -73,6 +89,7 @@ detection and attention only; learned prototype strength arrives in Stage 4.
 - `docs/PHASED_PLAN.md`: minimal staged plan (least dependency first)
 - `docs/COGNITIVE_ARCHITECTURE_MAP.md`: consolidated architecture, research hypotheses, and experiment gates
 - `docs/RESEARCH_HANDOFF_RECONCILIATION.md`: crosswalk from the revised research handoff to the canonical stage plan
+- `docs/OBJECT_MEMORY_HANDOFF_RECONCILIATION.md`: object files, permanence, prototype memory and replay (current sprint)
 - `docs/DEBUGGING.md`: debugging + refactor guidance
 - `docs/OBS_SETUP.md`: OBS recording setup for studies
 - `docs/REFERENCE_REPOS.md`: reference repos/libraries to fork or borrow from
