@@ -71,12 +71,12 @@ The handoff numbers its own stages 1-12. They are not the canonical
 | 4 permanence | Stage 9 | `objects/memory.py` | done |
 | 5 prototype memory | Stage 4 | `memory/prototypes.py` | done |
 | 6 real novelty | Stage 4 | `memory/prototypes.py` (`score_novelty`) | done; attention feedback deferred |
-| 7 episodic memory | new, after Stage 9 | `memory/episodes.py` | next |
+| 7 episodic memory | new, after Stage 9 | `memory/episodes.py` | done |
 | 8-9 categories | "categories after tracking" gate | `categories/` | after identity is validated on real clips |
 | 10 percept graph | Stage 7 | `graph/percept_graph.py` | next, reuse existing graph |
 | 11 consolidation | new | `consolidation/` | after 7-10 |
 | 12 KSG adapter stub | thin KSG writer | `adapters/ksg.py` | last |
-| run.py integration | Stage 0 harness | `experiments/cognition.py`, `experiments/replay.py` | done for 1-6 |
+| run.py integration | Stage 0 harness | `experiments/cognition.py`, `experiments/replay.py` | done for 1-7 |
 
 Canonical Stage 5 (top-down expected embedding and prediction error) and Stage 8
 (K-slot working memory) are not in the handoff's sprint list but remain planned;
@@ -128,11 +128,25 @@ with `memory_empty: true` and no nearest prototype.
 Novelty is not yet fed back into `AttentionScheduler`; the scheduler keeps its
 labelled confidence proxy until novelty is validated on recorded clips.
 
+### Episodic memory (`memory/episodes.py`)
+
+`EpisodicMemory` is an append-only, time-indexed store of `ObservationEvent`s,
+one per attended observation that was bound to an object file. Events are frozen
+dataclasses and carry the object id, frame, timestamp, box, embedding with its
+space id, detector confidence and the object's category id at the time (always
+`None` until categories exist). `last_seen`, `observations_for` and
+`objects_seen_in_range` answer the provenance questions consolidation will ask;
+range queries return objects ordered by first appearance so answers are
+deterministic. Retention is bounded by `max_events` (oldest dropped, totals
+kept), and an object's history stays queryable after it goes LOST or DORMANT.
+Observation ids come from a third seeded UUID stream, so replay reproduces them.
+
 ### Trace and replay (`experiments/`)
 
-`PerceptualLearner.step` sequences observe -> glimpse -> advance -> prototype
-update for one frame and returns three JSON blocks that are appended to every
-`frame` event:
+`PerceptualLearner.step` sequences observe -> record episode -> glimpse ->
+advance -> prototype update for one frame and returns the blocks appended to
+every `frame` event (plus a top-level `observation_id`, `null` when nothing was
+bound):
 
 ```json
 "object_file": {"status": "ok", "object_id": "obj-…", "created": false,
@@ -153,8 +167,8 @@ diffs every decision (floats within 1e-9). A `cognition_summary` event precedes
 ### Tests
 
 `tests/test_encoder_interface.py`, `test_object_file.py`, `test_object_binder.py`,
-`test_object_permanence.py`, `test_prototype_memory.py`, `test_novelty.py`, and
-`test_cognitive_replay.py`. The last one is the sprint acceptance scenario: red
+`test_object_permanence.py`, `test_prototype_memory.py`, `test_novelty.py`,
+`test_episodic_memory.py`, and `test_cognitive_replay.py`. The last one is the sprint acceptance scenario: red
 mug A appears, moves, is occluded, returns, blue mug B and headphones C appear, A
 leaves for ten frames and returns elsewhere. A keeps one UUID through OCCLUDED
 and LOST, B and C get distinct UUIDs, three prototypes form, and the trace replays
@@ -188,11 +202,9 @@ that the handoff intentionally defers.
 
 ## 7. Next steps in handoff order
 
-1. Episodic memory (`memory/episodes.py`): `ObservationEvent` per attended
-   observation, `last_seen`, `observations_for`, `objects_seen_in_range`.
-2. Percept graph integration: `object`, `prototype`, `observation` nodes and
+1. Percept graph integration: `object`, `prototype`, `observation` nodes and
    `OBSERVATION_OF`, `SIMILAR_TO`, `TRANSITIONS_TO` edges on the existing
    `PerceptGraph`, with save/load round trip.
-3. Validate object identity on a hashed recorded clip with controlled occlusion
+2. Validate object identity on a hashed recorded clip with controlled occlusion
    (EXP-PERM endpoints: reacquisition, ID switches) before category learning.
-4. Category memory and learner, then consolidation proposals, then the KSG sink.
+3. Category memory and learner, then consolidation proposals, then the KSG sink.

@@ -20,6 +20,7 @@ This repo now includes a minimal **Phase-1 scaffold**:
 - `features/encoder.py`: `PerceptEncoder` interface (+ `features/simple_embedding.py` baseline)
 - `objects/`: `ObjectFile`, `ObjectBinder`, `ObjectMemory` (visibility/permanence)
 - `memory/prototypes.py`: bounded prototype bank + memory-relative novelty
+- `memory/episodes.py`: episodic memory of attended observations (provenance for later layers)
 - `experiments/replay.py`: replay a session JSONL and verify every decision reproduces
 
 ### Install
@@ -69,7 +70,8 @@ python experiments/replay.py outputs/session_seed0_<time>.jsonl
 ```
 
 Every `frame` event carries `object_file`, `object_memory` and `learning` blocks
-(object-file binding, occlusion/loss state, memory-relative novelty). The replay
+(object-file binding, occlusion/loss state, memory-relative novelty) plus the
+`observation_id` of the episodic event recorded for the attended percept. The replay
 tool rebuilds the memories from the logged config and seed, feeds the logged BBPs
 and embeddings back through them and reports any decision that does not reproduce.
 

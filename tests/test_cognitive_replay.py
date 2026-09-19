@@ -266,11 +266,34 @@ def test_two_runs_with_same_seed_are_identical_and_seeds_change_ids(
     assert first[0]["cognition_schema"] == {
         "object_id_prefix": "obj-",
         "prototype_id_prefix": "proto-",
+        "observation_id_prefix": "obs-",
         "id_factory": "seeded_uuid4",
         "object_id_seed": 0,
         "prototype_id_seed": 1,
+        "observation_id_seed": 2,
         "embedding_space_id": "simple_crop_v1",
     }
+
+
+def test_every_binding_records_one_unique_observation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    events = _run(monkeypatch, tmp_path)
+    frames = [event for event in events if event["event"] == "frame"]
+
+    bound = [f for f in frames if f["object_file"]["status"] == "ok"]
+    unbound = [f for f in frames if f["object_file"]["status"] != "ok"]
+    ids = [f["observation_id"] for f in bound]
+
+    assert bound and unbound
+    assert all(i is not None and i.startswith("obs-") for i in ids)
+    assert len(set(ids)) == len(ids)
+    assert all(f["observation_id"] is None for f in unbound)
+
+    summary = next(event for event in events if event["event"] == "cognition_summary")
+    assert summary["episodes"]["recorded_total"] == len(bound)
+    assert summary["episodes"]["retained"] == len(bound)
+    assert summary["episodes"]["objects_with_history"] == 3
 
 
 def test_replay_cli_detects_a_tampered_decision(

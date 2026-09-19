@@ -22,12 +22,13 @@ if str(_REPO_ROOT) not in sys.path:
 from experiments.cognition import PerceptualLearner  # noqa: E402
 from experiments.config import ExperimentConfig  # noqa: E402
 from features.encoder import EmbeddingResult  # noqa: E402
+from memory.episodes import EpisodicMemoryConfig  # noqa: E402
 from memory.prototypes import PrototypeMemoryConfig  # noqa: E402
 from objects.binder import BinderConfig  # noqa: E402
 from objects.memory import PermanenceConfig  # noqa: E402
 from perception.bbp import BBP  # noqa: E402
 
-TRACE_KEYS = ("object_file", "object_memory", "learning")
+TRACE_KEYS = ("observation_id", "object_file", "object_memory", "learning")
 FLOAT_ABS_TOL = 1e-9
 FLOAT_REL_TOL = 1e-9
 
@@ -42,8 +43,11 @@ def config_from_event(start_event: dict[str, Any]) -> ExperimentConfig:
     binder = BinderConfig(**raw.pop("binder"))
     permanence = PermanenceConfig(**raw.pop("permanence"))
     prototypes = PrototypeMemoryConfig(**raw.pop("prototypes"))
+    episodes = EpisodicMemoryConfig(**raw.pop("episodes", {}))
     raw.pop("preview", None)
-    return ExperimentConfig(binder=binder, permanence=permanence, prototypes=prototypes, **raw)
+    return ExperimentConfig(
+        binder=binder, permanence=permanence, prototypes=prototypes, episodes=episodes, **raw
+    )
 
 
 def replay_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:

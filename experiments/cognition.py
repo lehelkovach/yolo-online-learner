@@ -12,6 +12,7 @@ from typing import Any
 
 from experiments.config import ExperimentConfig
 from features.encoder import EmbeddingResult, ensure_same_space
+from memory.episodes import EpisodicMemory
 from memory.prototypes import PrototypeMemory
 from objects.ids import seeded_uuid_factory
 from objects.memory import ObjectMemory
@@ -19,14 +20,22 @@ from perception.bbp import BBP
 
 OBJECT_ID_PREFIX = "obj-"
 PROTOTYPE_ID_PREFIX = "proto-"
+OBSERVATION_ID_PREFIX = "obs-"
+
+# Each memory draws its ids from its own seeded stream derived from the session seed.
+_ID_STREAMS = 3
 
 
 def object_id_seed(seed: int) -> int:
-    return 2 * int(seed)
+    return _ID_STREAMS * int(seed)
 
 
 def prototype_id_seed(seed: int) -> int:
-    return 2 * int(seed) + 1
+    return _ID_STREAMS * int(seed) + 1
+
+
+def observation_id_seed(seed: int) -> int:
+    return _ID_STREAMS * int(seed) + 2
 
 
 def empty_object_file_metrics(status: str) -> dict[str, Any]:
@@ -84,14 +93,23 @@ class PerceptualLearner:
                 prototype_id_seed(cfg.seed), prefix=PROTOTYPE_ID_PREFIX
             ),
         )
+        self.episodic_memory = EpisodicMemory(
+            embedding_space_id=encoder_space_id,
+            config=cfg.episodes,
+            id_factory=seeded_uuid_factory(
+                observation_id_seed(cfg.seed), prefix=OBSERVATION_ID_PREFIX
+            ),
+        )
 
     def schema(self) -> dict[str, Any]:
         return {
             "object_id_prefix": OBJECT_ID_PREFIX,
             "prototype_id_prefix": PROTOTYPE_ID_PREFIX,
+            "observation_id_prefix": OBSERVATION_ID_PREFIX,
             "id_factory": "seeded_uuid4",
             "object_id_seed": object_id_seed(self.cfg.seed),
             "prototype_id_seed": prototype_id_seed(self.cfg.seed),
+            "observation_id_seed": observation_id_seed(self.cfg.seed),
             "embedding_space_id": self.encoder_space_id,
         }
 
@@ -104,7 +122,8 @@ class PerceptualLearner:
         selected_index: int | None,
         embedding: EmbeddingResult | None,
     ) -> dict[str, Any]:
-        """Observe the attended percept, glimpse the rest, then age every object."""
+        """Observe, record the episode, glimpse the rest, then age every object."""
+        observation_id: str | None = None
         if selected_index is None:
             object_file = empty_object_file_metrics("no_selection")
             learning = empty_learning_metrics("no_selection")
@@ -120,6 +139,13 @@ class PerceptualLearner:
                 "visibility": obj.visibility.value,
                 "observation_count": obj.observation_count,
             }
+            episode = self.episodic_memory.record(
+                bbp=bbps[selected_index],
+                object_id=binding.object_id,
+                embedding=embedding,
+                category_id=obj.category_id,
+            )
+            observation_id = episode.observation_id
             update = self.prototype_memory.observe(embedding, timestamp_s=timestamp_s)
             learning = {"status": "ok", **update.to_dict()}
 
@@ -127,6 +153,7 @@ class PerceptualLearner:
         glimpsed = self.object_memory.glimpse(unattended, frame_idx=frame_idx)
         transitions = self.object_memory.advance(frame_idx)
         return {
+            "observation_id": observation_id,
             "object_file": object_file,
             "object_memory": {
                 "counts": self.object_memory.counts(),
@@ -140,4 +167,5 @@ class PerceptualLearner:
         return {
             "object_counts": self.object_memory.counts(),
             "prototype_count": len(self.prototype_memory),
+            "episodes": self.episodic_memory.counts(),
         }
