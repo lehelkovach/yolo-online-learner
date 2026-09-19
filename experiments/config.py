@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from features.simple_embedding import SIMPLE_EMBEDDING_SPACE_ID
+from graph.memory_graph import MemoryGraphConfig
 from memory.episodes import EpisodicMemoryConfig
 from memory.prototypes import PrototypeMemoryConfig
 from objects.binder import BinderConfig
@@ -37,3 +38,4 @@ class ExperimentConfig:
     permanence: PermanenceConfig = field(default_factory=PermanenceConfig)
     prototypes: PrototypeMemoryConfig = field(default_factory=_default_prototype_config)
     episodes: EpisodicMemoryConfig = field(default_factory=EpisodicMemoryConfig)
+    graph: MemoryGraphConfig = field(default_factory=MemoryGraphConfig)

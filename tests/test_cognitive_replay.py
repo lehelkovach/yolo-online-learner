@@ -247,6 +247,77 @@ def test_trace_replays_exactly_from_the_log(
     assert replay.compare_traces(events, replayed) == []
 
 
+def test_graph_records_identity_provenance_and_cooccurrence(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    events = _run(monkeypatch, tmp_path)
+    frames = {event["frame_idx"]: event for event in events if event["event"] == "frame"}
+    ids = {label: next(iter(v)) for label, v in _identity_map(events).items()}
+    summary = next(event for event in events if event["event"] == "cognition_summary")
+
+    session_path = next(tmp_path.glob("seed0/session_*.jsonl"))
+    snapshot = json.loads(
+        session_path.with_name(summary["graph_snapshot_path"]).read_text(encoding="utf-8")
+    )
+    nodes = {n["id"]: n for n in snapshot["nodes"]}
+    edges = snapshot["edges"]
+
+    # One object node per physical object, one observation node per binding.
+    assert {n["node_type"] for n in nodes.values()} == {"object", "observation", "prototype"}
+    assert summary["graph"]["object_nodes"] == 3
+    assert summary["graph"]["prototype_nodes"] == 3
+    assert summary["graph"]["observation_nodes"] == summary["episodes"]["retained"]
+    assert summary["graph"]["observation_of_edges"] == summary["graph"]["observation_nodes"]
+    assert nodes[ids["A"]]["visibility"] == "visible"
+
+    # Every observation points at exactly the object it was bound to.
+    for frame in frames.values():
+        if frame["object_file"]["status"] != "ok":
+            continue
+        obs = frame["observation_id"]
+        targets = [
+            e["dst"] for e in edges
+            if e["src"] == obs and e["edge_type"] == "OBSERVATION_OF"
+        ]
+        assert targets == [frame["object_file"]["object_id"]]
+
+    # A, B and C were visible together, so SEEN_WITH links all three pairs.
+    seen_with = {
+        tuple(sorted((e["src"], e["dst"]))): e["weight"]
+        for e in edges if e["edge_type"] == "SEEN_WITH"
+    }
+    def pair(x: str, y: str) -> tuple[str, str]:
+        return tuple(sorted((ids[x], ids[y])))  # type: ignore[return-value]
+
+    assert set(seen_with) == {pair("A", "B"), pair("A", "C"), pair("B", "C")}
+    assert seen_with[pair("B", "C")] > seen_with[pair("A", "C")]
+    # Only bound objects count: C is detected from frame 13 but not attended until A
+    # leaves, so three visible pairs first occur once A returns at frame 26.
+    assert frames[10]["graph"]["cooccurrence_pairs"] == 1
+    assert frames[13]["graph"]["cooccurrence_pairs"] == 1
+    assert frames[26]["graph"]["cooccurrence_pairs"] == 3
+
+
+def test_graph_snapshot_round_trips_and_replays(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from graph.memory_graph import MemoryGraph
+
+    events = _run(monkeypatch, tmp_path)
+    session_path = next(tmp_path.glob("seed0/session_*.jsonl"))
+    summary = next(event for event in events if event["event"] == "cognition_summary")
+    snapshot_path = session_path.with_name(summary["graph_snapshot_path"])
+    snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+
+    restored = MemoryGraph()
+    restored.load_snapshot(snapshot)
+    assert restored.snapshot() == snapshot
+
+    _, learner = replay.replay_events_with_learner(events)
+    assert learner.graph_snapshot() == snapshot
+    assert replay.compare_graph_snapshot(session_path, events, learner) == []
+
+
 def test_two_runs_with_same_seed_are_identical_and_seeds_change_ids(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -300,7 +371,8 @@ def test_replay_cli_detects_a_tampered_decision(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     events = _run(monkeypatch, tmp_path)
-    path = tmp_path / "session.jsonl"
+    # Keep the copy next to the original so the graph snapshot sidecar resolves.
+    path = tmp_path / "seed0" / "session_copy.jsonl"
     path.write_text("\n".join(json.dumps(e) for e in events) + "\n", encoding="utf-8")
     assert replay.main([str(path)]) == 0
     assert "0 mismatches" in capsys.readouterr().out

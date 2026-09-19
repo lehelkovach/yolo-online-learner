@@ -12,10 +12,12 @@ from typing import Any
 
 from experiments.config import ExperimentConfig
 from features.encoder import EmbeddingResult, ensure_same_space
+from graph.memory_graph import MemoryGraph
 from memory.episodes import EpisodicMemory
 from memory.prototypes import PrototypeMemory
 from objects.ids import seeded_uuid_factory
 from objects.memory import ObjectMemory
+from objects.object_file import VisibilityState
 from perception.bbp import BBP
 
 OBJECT_ID_PREFIX = "obj-"
@@ -100,6 +102,7 @@ class PerceptualLearner:
                 observation_id_seed(cfg.seed), prefix=OBSERVATION_ID_PREFIX
             ),
         )
+        self.graph = MemoryGraph(config=cfg.graph)
 
     def schema(self) -> dict[str, Any]:
         return {
@@ -148,10 +151,24 @@ class PerceptualLearner:
             observation_id = episode.observation_id
             update = self.prototype_memory.observe(embedding, timestamp_s=timestamp_s)
             learning = {"status": "ok", **update.to_dict()}
+            self.graph.record_observation(
+                episode,
+                visibility=obj.visibility.value,
+                nearest_prototype_id=update.novelty.nearest_prototype_id,
+                nearest_similarity=update.novelty.nearest_similarity,
+            )
 
         unattended = [bbp for index, bbp in enumerate(bbps) if index != selected_index]
         glimpsed = self.object_memory.glimpse(unattended, frame_idx=frame_idx)
         transitions = self.object_memory.advance(frame_idx)
+        for transition in transitions:
+            if transition.to_state is not None:
+                self.graph.set_visibility(transition.object_id, transition.to_state.value)
+        visible = [
+            obj.object_id for obj in self.object_memory.objects
+            if obj.visibility is VisibilityState.VISIBLE
+        ]
+        cooccurrence_pairs = self.graph.record_cooccurrence(visible, timestamp_s=timestamp_s)
         return {
             "observation_id": observation_id,
             "object_file": object_file,
@@ -161,11 +178,16 @@ class PerceptualLearner:
                 "transitions": [t.to_dict() for t in transitions],
             },
             "learning": learning,
+            "graph": {**self.graph.counts(), "cooccurrence_pairs": cooccurrence_pairs},
         }
+
+    def graph_snapshot(self) -> dict[str, Any]:
+        return self.graph.snapshot()
 
     def summary(self) -> dict[str, Any]:
         return {
             "object_counts": self.object_memory.counts(),
             "prototype_count": len(self.prototype_memory),
             "episodes": self.episodic_memory.counts(),
+            "graph": self.graph.counts(),
         }

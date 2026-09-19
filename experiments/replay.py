@@ -22,13 +22,14 @@ if str(_REPO_ROOT) not in sys.path:
 from experiments.cognition import PerceptualLearner  # noqa: E402
 from experiments.config import ExperimentConfig  # noqa: E402
 from features.encoder import EmbeddingResult  # noqa: E402
+from graph.memory_graph import MemoryGraphConfig  # noqa: E402
 from memory.episodes import EpisodicMemoryConfig  # noqa: E402
 from memory.prototypes import PrototypeMemoryConfig  # noqa: E402
 from objects.binder import BinderConfig  # noqa: E402
 from objects.memory import PermanenceConfig  # noqa: E402
 from perception.bbp import BBP  # noqa: E402
 
-TRACE_KEYS = ("observation_id", "object_file", "object_memory", "learning")
+TRACE_KEYS = ("observation_id", "object_file", "object_memory", "learning", "graph")
 FLOAT_ABS_TOL = 1e-9
 FLOAT_REL_TOL = 1e-9
 
@@ -44,14 +45,28 @@ def config_from_event(start_event: dict[str, Any]) -> ExperimentConfig:
     permanence = PermanenceConfig(**raw.pop("permanence"))
     prototypes = PrototypeMemoryConfig(**raw.pop("prototypes"))
     episodes = EpisodicMemoryConfig(**raw.pop("episodes", {}))
+    graph = MemoryGraphConfig(**raw.pop("graph", {}))
     raw.pop("preview", None)
     return ExperimentConfig(
-        binder=binder, permanence=permanence, prototypes=prototypes, episodes=episodes, **raw
+        binder=binder,
+        permanence=permanence,
+        prototypes=prototypes,
+        episodes=episodes,
+        graph=graph,
+        **raw,
     )
 
 
 def replay_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return the regenerated trace block for every logged frame, in order."""
+    trace, _ = replay_events_with_learner(events)
+    return trace
+
+
+def replay_events_with_learner(
+    events: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], PerceptualLearner]:
+    """Replay and also return the learner, so end-of-session state can be checked."""
     start = next(event for event in events if event["event"] == "session_start")
     cfg = config_from_event(start)
     space_id = start["embedding_schema"]["embedding_space_id"]
@@ -74,7 +89,7 @@ def replay_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             embedding=embedding,
         )
         trace.append({"frame_idx": event["frame_idx"], **blocks})
-    return trace
+    return trace, learner
 
 
 def _diff(logged: Any, replayed: Any, path: str, out: list[str]) -> None:
@@ -120,6 +135,22 @@ def compare_traces(
     return mismatches
 
 
+def compare_graph_snapshot(
+    session_path: Path, events: list[dict[str, Any]], learner: PerceptualLearner
+) -> list[str]:
+    """Diff the logged graph snapshot sidecar (if any) against the replayed graph."""
+    summary = next((e for e in events if e.get("event") == "cognition_summary"), None)
+    if summary is None or "graph_snapshot_path" not in summary:
+        return []
+    snapshot_path = session_path.with_name(summary["graph_snapshot_path"])
+    if not snapshot_path.exists():
+        return [f"graph snapshot {snapshot_path.name} missing"]
+    logged = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    mismatches: list[str] = []
+    _diff(logged, learner.graph_snapshot(), "graph_snapshot", mismatches)
+    return mismatches
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Replay a session JSONL and verify the cognitive trace reproduces."
@@ -129,8 +160,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     events = load_events(args.session)
-    replayed = replay_events(events)
+    replayed, learner = replay_events_with_learner(events)
     mismatches = compare_traces(events, replayed)
+    mismatches.extend(compare_graph_snapshot(Path(args.session), events, learner))
     print(f"replayed {len(replayed)} frames, {len(mismatches)} mismatches")
     for line in mismatches[: args.max_mismatches]:
         print(line)

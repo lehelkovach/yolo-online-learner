@@ -73,10 +73,10 @@ The handoff numbers its own stages 1-12. They are not the canonical
 | 6 real novelty | Stage 4 | `memory/prototypes.py` (`score_novelty`) | done; attention feedback deferred |
 | 7 episodic memory | new, after Stage 9 | `memory/episodes.py` | done |
 | 8-9 categories | "categories after tracking" gate | `categories/` | after identity is validated on real clips |
-| 10 percept graph | Stage 7 | `graph/percept_graph.py` | next, reuse existing graph |
+| 10 percept graph | Stage 7 | `graph/memory_graph.py` on `graph/percept_graph.py` | done (object, observation, prototype nodes) |
 | 11 consolidation | new | `consolidation/` | after 7-10 |
 | 12 KSG adapter stub | thin KSG writer | `adapters/ksg.py` | last |
-| run.py integration | Stage 0 harness | `experiments/cognition.py`, `experiments/replay.py` | done for 1-7 |
+| run.py integration | Stage 0 harness | `experiments/cognition.py`, `experiments/replay.py` | done for 1-7 and 10 |
 
 Canonical Stage 5 (top-down expected embedding and prediction error) and Stage 8
 (K-slot working memory) are not in the handoff's sprint list but remain planned;
@@ -141,12 +141,31 @@ deterministic. Retention is bounded by `max_events` (oldest dropped, totals
 kept), and an object's history stays queryable after it goes LOST or DORMANT.
 Observation ids come from a third seeded UUID stream, so replay reproduces them.
 
+### Percept graph integration (`graph/memory_graph.py`)
+
+`MemoryGraph` is a typed layer over the existing NetworkX `PerceptGraph`, kept
+deliberately small: `object`, `observation` and `prototype` nodes; `OBSERVATION_OF`
+(observation -> object), `SIMILAR_TO` (observation -> nearest prototype, weight =
+similarity) and `SEEN_WITH` (object -> object in canonical id order, weight =
+number of frames both were VISIBLE and bound). Object nodes carry first/last seen,
+observation count and current visibility, updated from permanence transitions.
+Re-inserting an observation id raises, so an episodic event can never be attached
+to two objects. Observation nodes are bounded by `max_observation_nodes` (oldest
+evicted, counts kept); object and prototype nodes persist. Category nodes,
+`INSTANCE_OF` and `DERIVED_FROM` arrive with the category learner.
+
+Every frame event carries graph counts, and at session end the runner writes a
+deterministic, sorted snapshot next to the log as `<session>_graph.json`. The
+replay tool rebuilds the graph and diffs it against that snapshot, so the
+relational state is covered by the same reproducibility contract as the
+per-frame decisions.
+
 ### Trace and replay (`experiments/`)
 
-`PerceptualLearner.step` sequences observe -> record episode -> glimpse ->
-advance -> prototype update for one frame and returns the blocks appended to
-every `frame` event (plus a top-level `observation_id`, `null` when nothing was
-bound):
+`PerceptualLearner.step` sequences observe -> record episode -> prototype update
+-> graph observation -> glimpse -> advance -> graph co-occurrence for one frame
+and returns the blocks appended to every `frame` event (plus a top-level
+`observation_id`, `null` when nothing was bound, and a `graph` block of counts):
 
 ```json
 "object_file": {"status": "ok", "object_id": "obj-…", "created": false,
@@ -168,7 +187,8 @@ diffs every decision (floats within 1e-9). A `cognition_summary` event precedes
 
 `tests/test_encoder_interface.py`, `test_object_file.py`, `test_object_binder.py`,
 `test_object_permanence.py`, `test_prototype_memory.py`, `test_novelty.py`,
-`test_episodic_memory.py`, and `test_cognitive_replay.py`. The last one is the sprint acceptance scenario: red
+`test_episodic_memory.py`, `test_percept_graph_memory.py`, and
+`test_cognitive_replay.py`. The last one is the sprint acceptance scenario: red
 mug A appears, moves, is occluded, returns, blue mug B and headphones C appear, A
 leaves for ten frames and returns elsewhere. A keeps one UUID through OCCLUDED
 and LOST, B and C get distinct UUIDs, three prototypes form, and the trace replays
@@ -202,9 +222,11 @@ that the handoff intentionally defers.
 
 ## 7. Next steps in handoff order
 
-1. Percept graph integration: `object`, `prototype`, `observation` nodes and
-   `OBSERVATION_OF`, `SIMILAR_TO`, `TRANSITIONS_TO` edges on the existing
-   `PerceptGraph`, with save/load round trip.
-2. Validate object identity on a hashed recorded clip with controlled occlusion
+1. Validate object identity on a hashed recorded clip with controlled occlusion
    (EXP-PERM endpoints: reacquisition, ID switches) before category learning.
-3. Category memory and learner, then consolidation proposals, then the KSG sink.
+   If the simple crop embedding cannot separate similar objects, add a stronger
+   `PerceptEncoder` (DINOv2-small) before continuing.
+2. Category memory and learner (`categories/`), adding `category` nodes and
+   `INSTANCE_OF` edges to the graph.
+3. Consolidation proposals with evidence ids drawn from episodic memory, then the
+   `DeclarativeMemorySink` interface with null, JSONL and KSG sinks.

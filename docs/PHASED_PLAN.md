@@ -6,10 +6,10 @@ Active work-order note: the current explicit handoff (see
 `docs/OBJECT_MEMORY_HANDOFF_RECONCILIATION.md`) makes persistent object identity
 the foundation. Delivered so far: Stage 2 attention, Stage 3 embeddings behind a
 `PerceptEncoder` interface, the object-file/permanence half of Stage 9 (no neural
-tracker), Stage 4 prototype memory with memory-relative novelty, and episodic
-memory of attended observations, all logged and replayable. Next in order:
-percept-graph integration, categories, consolidation proposals, then the KSG
-sink. Stage 5 and Stage 8 remain
+tracker), Stage 4 prototype memory with memory-relative novelty, episodic memory
+of attended observations, and a typed object/observation/prototype layer on the
+Stage 7 percept graph, all logged and replayable. Next in order: a real-clip
+identity check, categories, consolidation proposals, then the KSG sink. Stage 5 and Stage 8 remain
 planned and build on object files. Stages 6 and 7 retain their numbers below;
 Stage 7's graph substrate is reused by the percept-graph integration step.
 

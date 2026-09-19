@@ -34,6 +34,11 @@ def _seed_everything(seed: int) -> None:
     os.environ["PYTHONHASHSEED"] = str(seed)
 
 
+def graph_snapshot_path(session_path: Path) -> Path:
+    """Sidecar JSON holding the percept-graph snapshot for a session log."""
+    return session_path.with_name(f"{session_path.stem}_graph.json")
+
+
 def run_session(cfg: ExperimentConfig) -> Path:
     """Run a single recording session and write JSONL events."""
     _seed_everything(cfg.seed)
@@ -136,8 +141,17 @@ def run_session(cfg: ExperimentConfig) -> Path:
                     stop_reason = "operator_quit"
                     break
 
+            graph_path = graph_snapshot_path(out_path)
+            graph_path.write_text(json.dumps(learner.graph_snapshot()), encoding="utf-8")
             f.write(
-                json.dumps({"event": "cognition_summary", **learner.summary()}) + "\n"
+                json.dumps(
+                    {
+                        "event": "cognition_summary",
+                        **learner.summary(),
+                        "graph_snapshot_path": graph_path.name,
+                    }
+                )
+                + "\n"
             )
             end_event = {"event": "session_end"}
             if cfg.preview:
