@@ -25,6 +25,7 @@ from features.simple_embedding import (  # noqa: E402
 from memory.prototypes import PrototypeMemoryConfig  # noqa: E402
 from objects.binder import BinderConfig  # noqa: E402
 from objects.memory import PermanenceConfig  # noqa: E402
+from perception.recorded import RecordedBbpGenerator  # noqa: E402
 from perception.video import iter_frames  # noqa: E402
 from perception.yolo_adapter import YoloBbpGenerator  # noqa: E402
 
@@ -48,12 +49,15 @@ def run_session(cfg: ExperimentConfig) -> Path:
 
     preview = None
     try:
-        gen = YoloBbpGenerator(
-            model=cfg.yolo_model,
-            device=cfg.yolo_device,
-            conf=cfg.yolo_conf,
-            iou=cfg.yolo_iou,
-        )
+        if cfg.detections is not None:
+            gen = RecordedBbpGenerator(cfg.detections)
+        else:
+            gen = YoloBbpGenerator(
+                model=cfg.yolo_model,
+                device=cfg.yolo_device,
+                conf=cfg.yolo_conf,
+                iou=cfg.yolo_iou,
+            )
         if cfg.preview:
             preview = OpenCvPreview()
         attention = AttentionScheduler()
@@ -176,6 +180,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--yolo-conf", type=float, default=0.25)
     p.add_argument("--yolo-iou", type=float, default=0.7)
     p.add_argument("--preview", action="store_true", help="Show live BBPs and WTA attention")
+    p.add_argument(
+        "--detections",
+        default=None,
+        help=(
+            "Replay recorded detections (a detections JSONL or an earlier session log) "
+            "instead of running YOLO on the frames"
+        ),
+    )
     binder_defaults = BinderConfig()
     permanence_defaults = PermanenceConfig()
     prototype_defaults = PrototypeMemoryConfig(embedding_space_id=SimpleCropEncoder().space_id)
@@ -217,6 +229,7 @@ def main(argv: list[str] | None = None) -> int:
         yolo_iou=args.yolo_iou,
         preview=args.preview,
         output_dir=args.output_dir,
+        detections=args.detections,
         binder=replace(
             binder_defaults,
             match_threshold=args.match_threshold,

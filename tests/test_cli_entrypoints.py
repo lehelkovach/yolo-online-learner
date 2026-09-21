@@ -43,3 +43,15 @@ def test_experiments_replay_script_help() -> None:
     output = _help_output("experiments/replay.py")
 
     assert "session" in output
+
+
+def test_experiments_run_script_can_replay_detections() -> None:
+    output = _help_output("experiments/run.py")
+
+    assert "--detections" in output
+
+
+def test_generate_synthetic_clip_script_help() -> None:
+    output = _help_output("scripts/generate_synthetic_clip.py")
+
+    assert "--scenario" in output and "--no-video" in output

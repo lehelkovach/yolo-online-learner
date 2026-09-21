@@ -31,6 +31,8 @@ class ExperimentConfig:
     yolo_device: str | None = None
     yolo_conf: float = 0.25
     yolo_iou: float = 0.7
+    # Recorded detections to replay instead of running YOLO (``None`` = live YOLO).
+    detections: str | None = None
     # Output folder relative to repo root.
     output_dir: str = "outputs"
     preview: bool = False
