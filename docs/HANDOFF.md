@@ -3,9 +3,13 @@
 ### What you get in this repo right now
 
 - **Phase 1 BBP pipeline**: video/cam → YOLOv8 detections → BBPs
+- **Attention → embedding → object files → prototype memory**: one attended crop per
+  frame is bound to a persistent `ObjectFile` UUID (survives occlusion/absence) and
+  scored for memory-relative novelty against a bounded prototype bank
 - **Runnable entrypoints**:
   - `scripts/run_bbp_stream.py` (debug CLI)
   - `experiments/run.py` (session logger; JSONL output)
+  - `experiments/replay.py` (replays a JSONL log and verifies every decision reproduces)
 - **Sanity tests + lint config**: `pytest`, `ruff`
 
 ### When to move to local development

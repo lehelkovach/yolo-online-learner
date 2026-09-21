@@ -14,13 +14,17 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from attention.scheduler import AttentionScheduler, empty_attention_metrics  # noqa: E402
+from experiments.cognition import PerceptualLearner  # noqa: E402
 from experiments.config import ExperimentConfig  # noqa: E402
 from experiments.preview import OpenCvPreview  # noqa: E402
+from features.encoder import SimpleCropEncoder  # noqa: E402
 from features.simple_embedding import (  # noqa: E402
     attended_embedding_metrics,
-    embed_attended_crop,
     simple_embedding_schema,
 )
+from memory.prototypes import PrototypeMemoryConfig  # noqa: E402
+from objects.binder import BinderConfig  # noqa: E402
+from objects.memory import PermanenceConfig  # noqa: E402
 from perception.video import iter_frames  # noqa: E402
 from perception.yolo_adapter import YoloBbpGenerator  # noqa: E402
 
@@ -28,6 +32,11 @@ from perception.yolo_adapter import YoloBbpGenerator  # noqa: E402
 def _seed_everything(seed: int) -> None:
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
+
+
+def graph_snapshot_path(session_path: Path) -> Path:
+    """Sidecar JSON holding the percept-graph snapshot for a session log."""
+    return session_path.with_name(f"{session_path.stem}_graph.json")
 
 
 def run_session(cfg: ExperimentConfig) -> Path:
@@ -48,6 +57,8 @@ def run_session(cfg: ExperimentConfig) -> Path:
         if cfg.preview:
             preview = OpenCvPreview()
         attention = AttentionScheduler()
+        encoder = SimpleCropEncoder()
+        learner = PerceptualLearner(cfg, encoder_space_id=encoder.space_id)
         stop_reason = "completed"
 
         with out_path.open("w", encoding="utf-8") as f:
@@ -58,6 +69,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
                 "event": "session_start",
                 "config": config_metrics,
                 "embedding_schema": simple_embedding_schema(),
+                "cognition_schema": learner.schema(),
             }
             if cfg.preview:
                 start_event["preview_enabled"] = True
@@ -74,10 +86,12 @@ def run_session(cfg: ExperimentConfig) -> Path:
                 )
                 selection = attention.select(bbps)
                 embedding_result = None
+                embedding = None
                 selected_bbp_index = None
                 if selection is not None:
                     selected_bbp_index = selection.bbp_index
-                    embedding_result = embed_attended_crop(fr.image, selection.bbp.bbox)
+                    embedding_result = encoder.encode_crop(fr.image, selection.bbp.bbox)
+                    embedding = encoder.to_result(embedding_result)
                     if embedding_result is not None:
                         enriched_bbp = replace(
                             selection.bbp,
@@ -85,6 +99,13 @@ def run_session(cfg: ExperimentConfig) -> Path:
                         )
                         bbps[selection.bbp_index] = enriched_bbp
                         selection = replace(selection, bbp=enriched_bbp)
+                cognition = learner.step(
+                    frame_idx=fr.frame_idx,
+                    timestamp_s=fr.timestamp_s,
+                    bbps=bbps,
+                    selected_index=selected_bbp_index,
+                    embedding=embedding,
+                )
 
                 attention_metrics = (
                     selection.to_metrics(len(bbps))
@@ -104,6 +125,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
                             "bbps": [b.to_dict() for b in bbps],
                             "attention": attention_metrics,
                             "attended_embedding": embedding_metrics,
+                            **cognition,
                         }
                     )
                     + "\n"
@@ -119,6 +141,18 @@ def run_session(cfg: ExperimentConfig) -> Path:
                     stop_reason = "operator_quit"
                     break
 
+            graph_path = graph_snapshot_path(out_path)
+            graph_path.write_text(json.dumps(learner.graph_snapshot()), encoding="utf-8")
+            f.write(
+                json.dumps(
+                    {
+                        "event": "cognition_summary",
+                        **learner.summary(),
+                        "graph_snapshot_path": graph_path.name,
+                    }
+                )
+                + "\n"
+            )
             end_event = {"event": "session_end"}
             if cfg.preview:
                 end_event["stop_reason"] = stop_reason
@@ -142,6 +176,29 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--yolo-conf", type=float, default=0.25)
     p.add_argument("--yolo-iou", type=float, default=0.7)
     p.add_argument("--preview", action="store_true", help="Show live BBPs and WTA attention")
+    binder_defaults = BinderConfig()
+    permanence_defaults = PermanenceConfig()
+    prototype_defaults = PrototypeMemoryConfig(embedding_space_id=SimpleCropEncoder().space_id)
+    p.add_argument("--match-threshold", type=float, default=binder_defaults.match_threshold)
+    p.add_argument("--reid-threshold", type=float, default=binder_defaults.reid_threshold)
+    p.add_argument(
+        "--occluded-after", type=int, default=permanence_defaults.occluded_after_frames
+    )
+    p.add_argument("--lost-after", type=int, default=permanence_defaults.lost_after_frames)
+    p.add_argument(
+        "--dormant-after", type=int, default=permanence_defaults.dormant_after_frames
+    )
+    p.add_argument(
+        "--prototype-threshold", type=float, default=prototype_defaults.match_threshold
+    )
+    p.add_argument("--max-prototypes", type=int, default=prototype_defaults.max_prototypes)
+    p.add_argument(
+        "--prototype-update-rule", choices=("running_mean", "learning_rate"),
+        default=prototype_defaults.update_rule,
+    )
+    p.add_argument(
+        "--prototype-learning-rate", type=float, default=prototype_defaults.learning_rate
+    )
     args = p.parse_args(argv)
 
     try:
@@ -160,6 +217,24 @@ def main(argv: list[str] | None = None) -> int:
         yolo_iou=args.yolo_iou,
         preview=args.preview,
         output_dir=args.output_dir,
+        binder=replace(
+            binder_defaults,
+            match_threshold=args.match_threshold,
+            reid_threshold=args.reid_threshold,
+        ),
+        permanence=replace(
+            permanence_defaults,
+            occluded_after_frames=args.occluded_after,
+            lost_after_frames=args.lost_after,
+            dormant_after_frames=args.dormant_after,
+        ),
+        prototypes=replace(
+            prototype_defaults,
+            update_rule=args.prototype_update_rule,
+            learning_rate=args.prototype_learning_rate,
+            match_threshold=args.prototype_threshold,
+            max_prototypes=args.max_prototypes,
+        ),
     )
     out_path = run_session(cfg)
     print(str(out_path))
