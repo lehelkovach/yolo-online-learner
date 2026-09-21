@@ -23,6 +23,9 @@ This repo now includes a minimal **Phase-1 scaffold**:
 - `memory/episodes.py`: episodic memory of attended observations (provenance for later layers)
 - `graph/memory_graph.py`: object/observation/prototype nodes and typed edges on the NetworkX percept graph
 - `experiments/replay.py`: replay a session JSONL and verify every decision reproduces
+- `experiments/identity_report.py`: score identity decisions in a session log (switches, merges, borderline bindings)
+- `perception/synthetic.py` + `scripts/generate_synthetic_clip.py`: deterministic test clip with truth and scripted detections
+- `perception/recorded.py`: replay recorded detections through the pipeline instead of running YOLO
 
 ### Install
 
@@ -77,6 +80,24 @@ Every `frame` event carries `object_file`, `object_memory` and `learning` blocks
 `<session>_graph.json`; the replay tool checks it too. The replay
 tool rebuilds the memories from the logged config and seed, feeds the logged BBPs
 and embeddings back through them and reports any decision that does not reproduce.
+
+### Check object identity on a synthetic clip (no camera or YOLO needed)
+
+```bash
+python scripts/generate_synthetic_clip.py --output-dir outputs/synthetic
+python experiments/run.py --source outputs/synthetic/two_mugs.mp4 \
+    --detections outputs/synthetic/two_mugs_detections.jsonl --max-frames 600 --output-dir outputs
+python experiments/identity_report.py outputs/session_seed0_<time>.jsonl \
+    --truth outputs/synthetic/two_mugs_truth.jsonl
+```
+
+The clip has two similar mugs, a hand that covers one, and the other leaving
+and returning elsewhere. The report lists one object file per entity, every
+re-identification with its score and runner-up, and exits non-zero on identity
+switches or merges. Run it on a real recording without `--truth` to read off
+creations and borderline bindings, or add a hand-labelled truth file for exact
+switch counts. `--detections` also accepts an earlier session log, so one
+recording can be re-run under different thresholds without repeating YOLO.
 
 ### Observe BBPs and attention live
 

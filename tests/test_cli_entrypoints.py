@@ -55,3 +55,9 @@ def test_generate_synthetic_clip_script_help() -> None:
     output = _help_output("scripts/generate_synthetic_clip.py")
 
     assert "--scenario" in output and "--no-video" in output
+
+
+def test_identity_report_script_help() -> None:
+    output = _help_output("experiments/identity_report.py")
+
+    assert "--truth" in output

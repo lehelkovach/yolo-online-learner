@@ -105,6 +105,15 @@ Every memory layer below takes `EmbeddingResult`, never a bare vector.
   objects use a fixed `absent_spatial_prior` and the stricter `reid_threshold`,
   so re-identification is appearance-led. YOLO class is a weak hint only; the
   tests prove class identity cannot force a match and class flips cannot break one.
+- Two continuity gates protect objects believed present (VISIBLE/OCCLUDED):
+  `present_min_spatial` vetoes a percept whose spatial similarity to the
+  predicted box is below the gate, and `present_max_area_ratio` vetoes one whose
+  box area differs from the prediction by more than that factor. A vetoed
+  candidate is never accepted whatever its appearance says, because a present
+  object is where it was last seen and about the size it was. The gates were
+  added after the synthetic identity gate (section 5a) showed two similar mugs
+  collapsing into one object file on appearance plus class alone. LOST/DORMANT
+  objects are not gated: their position is unknown by definition.
 - Ties keep insertion order (older object wins), so decisions are deterministic.
 - `ObjectMemory` owns the ladder `VISIBLE -> OCCLUDED -> LOST -> DORMANT` with
   frame thresholds in `PermanenceConfig`, plus optional forgetting. Because
@@ -196,9 +205,14 @@ from the log with zero mismatches. All pre-existing tests are unchanged.
 
 ## 5. Known limits of this baseline
 
-- The simple 10-d embedding separates the synthetic objects cleanly; on real
-  video, appearance similarity between different objects of the same colour
-  and shape will be high. Thresholds are configuration, and the replay tool
+- The simple 10-d embedding does not separate similar objects. On the synthetic
+  two-mug clip the two mugs have appearance cosine 0.996 and the skin-coloured
+  hand scores 0.93 against a mug, because geometry dominates the vector.
+  Identity currently holds because of the binder's continuity gates, not
+  because of appearance. Re-identification of LOST/DORMANT objects, which has no
+  spatial evidence, runs on thin margins (runner-ups at 0.72-0.75 against the
+  0.75 threshold). A stronger `PerceptEncoder` is the next lever if real footage
+  shows the same pattern. Thresholds are configuration, and the replay tool
   exists so threshold sweeps can be run offline on one recorded log.
 - Only the attended BBP updates appearance. A long-visible but never-attended
   object stays VISIBLE via glimpses but its embedding does not drift with it.
@@ -206,6 +220,46 @@ from the log with zero mismatches. All pre-existing tests are unchanged.
   can keep a departed object VISIBLE for a few frames.
 - `identity_confidence` currently stores the last match score; calibration is
   future work.
+
+## 5a. Identity gate tooling
+
+The handoff gates category learning on object identity holding up on real
+footage. Three pieces turn that gate into one command:
+
+- `perception/synthetic.py` and `scripts/generate_synthetic_clip.py` render a
+  deterministic scene (`two_mugs`: two similar mugs, a hand that covers one, the
+  other leaving the frame and returning elsewhere) plus per-frame truth boxes
+  and noisy scripted detections. It runs without a camera or YOLO.
+- `perception/recorded.py` (`experiments/run.py --detections FILE`) feeds
+  recorded detections through the pipeline instead of YOLO. It accepts the
+  synthetic detections file or any earlier session log, so one real recording
+  can be re-run under different memory settings without repeating detection.
+- `experiments/identity_report.py` scores a session log: per object file the
+  creation frame, bindings, re-identifications by prior state and final
+  visibility; every borderline decision with its score, threshold, runner-up
+  and the three similarity terms; and, given `--truth`, exact identity
+  switches, fragmentations, merges, missed and false re-identifications by
+  matching each attended BBP to the truth box it overlaps most. The exit code
+  is 1 when switches or merges occur.
+
+Synthetic result at 320x240, 20 s, default thresholds: 3 object files for 3
+entities, 0 switches, 0 fragmentations, 0 merges, 29 re-identifications
+(23 from OCCLUDED, 3 from LOST, 3 from DORMANT). With the continuity gates
+disabled the same clip yields 9 switches and 3 merged objects, which is why
+`tests/test_identity_report.py` pins both outcomes.
+
+To run the gate on real footage:
+
+```bash
+python experiments/run.py --source clip.mp4 --max-frames 900 --output-dir outputs
+python experiments/identity_report.py outputs/session_seed0_<time>.jsonl
+# with hand-labelled truth (one line per frame: {"frame_idx", "objects": [{"label", "bbox"}]}):
+python experiments/identity_report.py outputs/session_seed0_<time>.jsonl --truth truth.jsonl
+```
+
+Without truth the report still lists every creation that happened while an
+absent object existed, every near-miss creation, and every borderline binding,
+which is enough to read off identity switches by eye on a short clip.
 
 ## 6. Related unmerged branches
 
@@ -222,9 +276,11 @@ that the handoff intentionally defers.
 
 ## 7. Next steps in handoff order
 
-1. Validate object identity on a hashed recorded clip with controlled occlusion
+1. Validate object identity on a recorded clip with controlled occlusion
    (EXP-PERM endpoints: reacquisition, ID switches) before category learning.
-   If the simple crop embedding cannot separate similar objects, add a stronger
+   The synthetic gate passes (section 5a); the real-footage run is still
+   outstanding and needs a camera clip. If it shows the same thin
+   re-identification margins as the synthetic clip, add a stronger
    `PerceptEncoder` (DINOv2-small) before continuing.
 2. Category memory and learner (`categories/`), adding `category` nodes and
    `INSTANCE_OF` edges to the graph.
