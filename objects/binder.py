@@ -30,12 +30,22 @@ class BinderConfig:
     class_unknown_similarity: float = 1.0
     # ``None`` = exact running mean; float = learning-rate update of object appearance.
     appearance_eta: float | None = None
+    # Continuity gates for objects believed present (VISIBLE/OCCLUDED). A present object
+    # is near its predicted box and about its last size, whatever its appearance says;
+    # a percept violating either gate is vetoed rather than scored.
+    present_min_spatial: float = 0.2
+    # Max allowed ratio between the percept's box area and the predicted box area,
+    # in either direction. ``None`` disables the size gate.
+    present_max_area_ratio: float | None = 3.0
 
     def __post_init__(self) -> None:
-        for name in ("match_threshold", "reid_threshold", "absent_spatial_prior"):
+        for name in ("match_threshold", "reid_threshold", "absent_spatial_prior",
+                     "present_min_spatial"):
             value = getattr(self, name)
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"{name} must be in [0, 1]")
+        if self.present_max_area_ratio is not None and self.present_max_area_ratio < 1.0:
+            raise ValueError("present_max_area_ratio must be >= 1 or None")
         for name in ("appearance_weight", "spatial_weight", "class_weight"):
             if getattr(self, name) < 0.0:
                 raise ValueError(f"{name} must be non-negative")
@@ -55,10 +65,12 @@ class CandidateScore:
     class_compatibility: float
     visibility: VisibilityState
     threshold: float
+    # Name of the continuity gate that rejected this candidate outright, if any.
+    veto: str | None = None
 
     @property
     def accepted(self) -> bool:
-        return self.score >= self.threshold
+        return self.veto is None and self.score >= self.threshold
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +117,14 @@ def spatial_similarity(candidate: BoundingBox, predicted: BoundingBox, *, scale:
     return max(iou, kernel)
 
 
+def _area_ratio_ok(candidate: BoundingBox, predicted: BoundingBox, max_ratio: float) -> bool:
+    """True when neither box is more than ``max_ratio`` times the area of the other."""
+    a, b = candidate.area, predicted.area
+    if a <= 0.0 or b <= 0.0:
+        return False
+    return max(a / b, b / a) <= max_ratio
+
+
 class ObjectBinder:
     """Decide whether an attended percept belongs to an existing object file."""
 
@@ -121,16 +141,20 @@ class ObjectBinder:
         cfg = self.config
         appearance = cosine_similarity(embedding.vector, obj.prototype_embedding)
         appearance = max(0.0, appearance)
+        veto: str | None = None
         if obj.visibility in ABSENT_STATES:
             spatial = cfg.absent_spatial_prior
             threshold = cfg.reid_threshold
         else:
-            spatial = spatial_similarity(
-                bbp.bbox,
-                obj.predicted_bbox(bbp.frame_idx),
-                scale=cfg.spatial_distance_scale,
-            )
+            predicted = obj.predicted_bbox(bbp.frame_idx)
+            spatial = spatial_similarity(bbp.bbox, predicted, scale=cfg.spatial_distance_scale)
             threshold = cfg.match_threshold
+            if spatial < cfg.present_min_spatial:
+                veto = "spatial"
+            elif cfg.present_max_area_ratio is not None and not _area_ratio_ok(
+                bbp.bbox, predicted, cfg.present_max_area_ratio
+            ):
+                veto = "size"
         klass = self.class_compatibility(bbp.class_id, obj.last_class_id)
         total = (
             cfg.appearance_weight * appearance
@@ -145,6 +169,7 @@ class ObjectBinder:
             class_compatibility=klass,
             visibility=obj.visibility,
             threshold=threshold,
+            veto=veto,
         )
 
     def rank(

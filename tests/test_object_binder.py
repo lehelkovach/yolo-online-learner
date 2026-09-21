@@ -5,7 +5,7 @@ import pytest
 from features.encoder import EmbeddingResult, EmbeddingSpaceMismatchError
 from objects.binder import BinderConfig, ObjectBinder, spatial_similarity
 from objects.ids import seeded_uuid_factory, sequential_id_factory
-from objects.memory import ObjectMemory
+from objects.memory import ObjectMemory, PermanenceConfig
 from objects.object_file import ObjectFile, VisibilityState
 from perception.bbp import BBP, BoundingBox
 
@@ -191,3 +191,68 @@ def test_replay_with_seeded_uuid_factory_reproduces_ids() -> None:
     assert len(set(first)) == 3
     assert all(len(value) == 36 for value in first)
     assert first != other_seed
+
+
+def test_present_object_far_away_is_vetoed_despite_identical_appearance() -> None:
+    memory = _memory()
+    first = memory.observe(_bbp(0.0, frame_idx=0, class_id=41), _emb(1.0, 0.0))
+
+    far = memory.observe(_bbp(200.0, frame_idx=1, class_id=41), _emb(1.0, 0.0))
+
+    assert far.created is True and far.object_id != first.object_id
+    # Appearance and class alone would have cleared the match threshold.
+    assert far.runner_up_score is not None and far.runner_up_score >= 0.65
+    ranked = memory._binder.rank(_bbp(200.0, frame_idx=1, class_id=41), _emb(1.0, 0.0),
+                                 [memory.get(first.object_id)])
+    assert ranked[0].veto == "spatial" and ranked[0].accepted is False
+
+
+def test_present_object_size_jump_is_vetoed() -> None:
+    memory = _memory()
+    first = memory.observe(_bbp(0.0, frame_idx=0, size=10.0), _emb(1.0, 0.0))
+
+    # Same centre, same appearance, but nine times the area: an occluder, not the object.
+    big = memory.observe(
+        BBP(frame_idx=1, timestamp_s=0.1, bbox=BoundingBox(-10.0, -10.0, 20.0, 20.0),
+            confidence=0.9),
+        _emb(1.0, 0.0),
+    )
+
+    assert big.created is True and big.object_id != first.object_id
+    ranked = memory._binder.rank(
+        BBP(frame_idx=1, timestamp_s=0.1, bbox=BoundingBox(-10.0, -10.0, 20.0, 20.0),
+            confidence=0.9),
+        _emb(1.0, 0.0),
+        [memory.get(first.object_id)],
+    )
+    assert ranked[0].veto == "size"
+
+
+def test_absent_objects_are_not_gated_by_position_or_size() -> None:
+    memory = _memory(
+        permanence=PermanenceConfig(
+            occluded_after_frames=1, lost_after_frames=2, dormant_after_frames=3
+        )
+    )
+    first = memory.observe(_bbp(0.0, frame_idx=0), _emb(1.0, 0.0))
+    for frame_idx in range(1, 3):
+        memory.advance(frame_idx)
+    assert memory.get(first.object_id).visibility is VisibilityState.LOST
+
+    back = memory.observe(_bbp(300.0, frame_idx=3, size=25.0), _emb(1.0, 0.0))
+
+    assert back.created is False and back.object_id == first.object_id
+    assert back.reidentified is True and back.previous_visibility is VisibilityState.LOST
+
+
+def test_gates_can_be_disabled_and_are_validated() -> None:
+    memory = _memory(binder_config=BinderConfig(present_min_spatial=0.0,
+                                                present_max_area_ratio=None))
+    first = memory.observe(_bbp(0.0, frame_idx=0, class_id=41), _emb(1.0, 0.0))
+    far = memory.observe(_bbp(200.0, frame_idx=1, class_id=41), _emb(1.0, 0.0))
+    assert far.created is False and far.object_id == first.object_id
+
+    with pytest.raises(ValueError):
+        BinderConfig(present_min_spatial=1.5)
+    with pytest.raises(ValueError):
+        BinderConfig(present_max_area_ratio=0.5)
