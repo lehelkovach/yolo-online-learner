@@ -104,3 +104,38 @@ inhibition of return), after which the identity endpoints should be re-measured.
    protocol with hand-repaired truth on a scripted-occlusion clip.
 4. Negative result retained: logs, sweep and eval JSON for both runs were kept
    with the clip hash; the numbers above are copied from them.
+
+## 5. Follow-up: top-down attention on the same clip
+
+`--attention top_down --ior-frames 3` (YOLO encoder, velocity fix from the
+previous PR applied in both rows) replaces the proxy with the object files'
+expectations: BBPs no object explains come first, then violated expectations,
+then objects not attended for a while; inhibition of return is per object.
+
+| | proxy (default) | top_down |
+|---|---|---|
+| frames attending a person | 113 | 259 |
+| frames on static van / car / bench | 184 | 39 |
+| most frames on one object | 133 | 58 |
+| objects attended on 10 or more frames | 7 | 11 |
+| glimpses | 584 | 1380 |
+| OCCLUDED / LOST transitions | 86 / 53 | 190 / 91 |
+| ID switches on provisional truth | 20 | 82 |
+| purity | 0.73 | 0.34 |
+| mean position error | 0.08 | 0.37 |
+
+Attention now does what it should: it scans the scene and spends its budget on
+the moving people. Identity gets worse, and the reason is not attention. With
+pedestrians attended in turn, each one is kept alive between attentions by
+glimpses, and a glimpse is many-to-many (any unattended box overlapping any
+predicted box) and never moves the object. In a group, neighbours keep each
+other VISIBLE at stale positions, the predicted boxes drift, and when attention
+returns the binder has several plausible candidates with similar appearance and
+picks the wrong one. Under the proxy this was hidden because attention sat on
+parked vehicles, where glimpses are trivially right.
+
+So `top_down` stays opt-in (the proxy remains the default and the baseline), and
+the next mechanism is the one the ladder already names for Stage 9: a one-to-one
+spatial assignment of unattended BBPs to VISIBLE and OCCLUDED objects that
+updates position and velocity (never appearance), replacing the glimpse. The
+identity endpoints are re-measured after it, with the same clip and truth.

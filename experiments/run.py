@@ -14,7 +14,11 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from attention.scheduler import AttentionScheduler, empty_attention_metrics  # noqa: E402
+from attention.scheduler import (  # noqa: E402
+    AttentionConfig,
+    AttentionScheduler,
+    empty_attention_metrics,
+)
 from experiments.cognition import PerceptualLearner  # noqa: E402
 from experiments.config import ExperimentConfig  # noqa: E402
 from experiments.preview import OpenCvPreview  # noqa: E402
@@ -94,7 +98,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
         )
         if cfg.preview:
             preview = OpenCvPreview()
-        attention = AttentionScheduler()
+        attention = AttentionScheduler(cfg.attention)
         encoder = build_encoder(cfg)
         learner = PerceptualLearner(cfg, encoder_space_id=encoder.space_id)
         stop_reason = "completed"
@@ -123,7 +127,9 @@ def run_session(cfg: ExperimentConfig) -> Path:
                     timestamp_s=fr.timestamp_s,
                     frame_bgr=fr.image,
                 )
-                selection = attention.select(bbps)
+                selection = attention.select(
+                    bbps, expectations=learner.expectations(fr.frame_idx)
+                )
                 embedding_result = None
                 embedding = None
                 selected_bbp_index = None
@@ -149,7 +155,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
                 attention_metrics = (
                     selection.to_metrics(len(bbps))
                     if selection is not None
-                    else empty_attention_metrics()
+                    else empty_attention_metrics(cfg.attention.mode)
                 )
                 embedding_metrics = attended_embedding_metrics(
                     embedding_result,
@@ -217,6 +223,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--yolo-conf", type=float, default=0.25)
     p.add_argument("--yolo-iou", type=float, default=0.7)
     p.add_argument("--preview", action="store_true", help="Show live BBPs and WTA attention")
+    attention_defaults = AttentionConfig()
+    p.add_argument(
+        "--attention", choices=("proxy", "top_down"), default=attention_defaults.mode,
+        help="priority policy: proxy (confidence/area) or top_down (expectations)",
+    )
+    p.add_argument("--ior-frames", type=int, default=attention_defaults.ior_frames,
+                   help="inhibition-of-return window in frames")
     p.add_argument(
         "--encoder", choices=ENCODERS, default="simple",
         help="attended-crop encoder: simple (10-d colour/geometry) or yolo (frozen features)",
@@ -296,6 +309,7 @@ def main(argv: list[str] | None = None) -> int:
         encoder_imgsz=args.encoder_imgsz,
         preview=args.preview,
         output_dir=args.output_dir,
+        attention=replace(attention_defaults, mode=args.attention, ior_frames=args.ior_frames),
         binder=replace(
             binder_defaults,
             match_threshold=args.match_threshold,

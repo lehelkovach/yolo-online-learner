@@ -56,7 +56,11 @@ PRESETS: dict[str, Overrides] = {
 
 
 def apply_overrides(cfg: ExperimentConfig, overrides: Overrides) -> ExperimentConfig:
-    """Return ``cfg`` with nested config fields replaced; unknown names raise."""
+    """Return ``cfg`` with nested config fields replaced; unknown names raise.
+
+    ``attention`` is deliberately not sweepable: only the logged winner carries an
+    embedding, so a different selection could not be re-embedded offline.
+    """
     changes: dict[str, Any] = {}
     for section, fields in overrides.items():
         if section not in NESTED_CONFIGS:

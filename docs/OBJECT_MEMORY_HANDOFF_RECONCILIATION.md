@@ -142,8 +142,12 @@ non-learning baseline the experiment invariants require: novelty is still
 scored, nothing is ever created or updated. All three are CLI flags on
 `experiments/run.py` and sweepable through `experiments/sweep.py`.
 
-Novelty is not yet fed back into `AttentionScheduler`; the scheduler keeps its
-labelled confidence proxy until novelty is validated on recorded clips.
+The scheduler keeps its labelled confidence proxy as the default. The
+recorded-clip run (`docs/EXP_PERM_FIRST_RUN.md`) validated that the proxy does
+not scan a real scene, so `AttentionConfig.mode = "top_down"` now ranks BBPs by
+the object files' expectations (unexpectedness, last prediction error,
+staleness, confidence) with object-based inhibition of return; it is opt-in
+until the Stage 9 spatial track update lets identity hold up under it.
 
 ### Episodic memory (`memory/episodes.py`)
 
