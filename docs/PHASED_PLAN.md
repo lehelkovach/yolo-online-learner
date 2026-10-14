@@ -46,6 +46,13 @@ Stage 7's graph substrate is reused by the percept-graph integration step.
 
 - Top-down prototypes predict expected embedding; select winner(s) by min error.
 - Tests: error decreases for repeated percepts; spikes for novel ones.
+- Status: delivered as typed prediction error (`memory/prediction.py`). Each object
+  file's accumulated appearance and predicted box are the top-down expectation; the
+  attended observation's gap to it is logged per frame as `prediction`
+  (`appearance_error`, `position_error`, kind `fulfilled`/`violated`/`unexpected`)
+  and summarised at session end. Winner selection by minimum error is the Stage 4
+  nearest-prototype match. Error-gated gain is Stage 6; error-driven attention
+  waits for the recorded-clip validation.
 
 ### Stage 6 — Habituation / sensitization (gain gating)
 

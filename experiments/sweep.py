@@ -38,7 +38,7 @@ from experiments.replay import (  # noqa: E402
 
 Overrides = dict[str, dict[str, Any]]
 
-NESTED_CONFIGS = ("binder", "permanence", "prototypes", "episodes", "graph")
+NESTED_CONFIGS = ("binder", "permanence", "prototypes", "episodes", "graph", "prediction")
 
 PRESETS: dict[str, Overrides] = {
     "logged": {},

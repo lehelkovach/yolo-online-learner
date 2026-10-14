@@ -78,6 +78,7 @@ The handoff numbers its own stages 1-12. They are not the canonical
 | 12 KSG adapter stub | thin KSG writer | `adapters/ksg.py` | last |
 | run.py integration | Stage 0 harness | `experiments/cognition.py`, `experiments/replay.py` | done for 1-7 and 10 |
 | EXP-PERM harness | "categories after tracking" gate | `experiments/identity_eval.py`, `experiments/sweep.py` | done; recorded-clip run pending |
+| (not in handoff) prediction error | Stage 5 | `memory/prediction.py` | done; typed error, no plasticity change |
 
 Canonical Stage 5 (top-down expected embedding and prediction error) and Stage 8
 (K-slot working memory) are not in the handoff's sprint list but remain planned;
@@ -218,6 +219,21 @@ higher-confidence box and are reported). `session_start` now records the git
 commit as `code_revision`, which the bootstrap copies into the truth file's
 provenance. The protocol, the annotation format and the pre-declared pass/fail
 rule are in `docs/EXP_PERM_PROTOCOL.md`.
+
+### Prediction error (`memory/prediction.py`, canonical Stage 5)
+
+Each object file's accumulated appearance and predicted box are a top-down
+expectation for the next frame. When attention binds a percept to an object
+file, the binder has already scored it against that expectation *before* the
+update, so the typed error costs nothing extra: `appearance_error` (`1 - cosine`),
+`position_error` (centre distance over the predicted-box diagonal, clipped;
+`null` when the object was LOST or DORMANT and so predicted no position) and a
+`kind`: `fulfilled`, `violated` (appearance error at or above
+`PredictionConfig.violation_threshold`) or `unexpected` (a new object file,
+surprise `1.0`). The `prediction` block is part of the replay contract and the
+session summary carries the EXP-PREDICT endpoints (counts per kind, mean errors).
+Prototype-level error is the Stage 4 novelty. Nothing gates plasticity or
+attention on it yet: that is Stage 6 and the deferred attention feedback.
 
 ### Tests
 

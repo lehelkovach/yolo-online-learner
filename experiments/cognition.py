@@ -14,6 +14,7 @@ from experiments.config import ExperimentConfig
 from features.encoder import EmbeddingResult, ensure_same_space
 from graph.memory_graph import MemoryGraph
 from memory.episodes import EpisodicMemory
+from memory.prediction import PredictionStats, empty_prediction_metrics, prediction_error
 from memory.prototypes import PrototypeMemory
 from objects.ids import seeded_uuid_factory
 from objects.memory import ObjectMemory
@@ -105,6 +106,7 @@ class PerceptualLearner:
             ),
         )
         self.graph = MemoryGraph(config=cfg.graph)
+        self.prediction_stats = PredictionStats()
 
     def schema(self) -> dict[str, Any]:
         return {
@@ -132,9 +134,11 @@ class PerceptualLearner:
         if selected_index is None:
             object_file = empty_object_file_metrics("no_selection")
             learning = empty_learning_metrics("no_selection")
+            prediction = empty_prediction_metrics("no_selection")
         elif embedding is None:
             object_file = empty_object_file_metrics("no_embedding")
             learning = empty_learning_metrics("no_embedding")
+            prediction = empty_prediction_metrics("no_embedding")
         else:
             binding = self.object_memory.observe(bbps[selected_index], embedding)
             obj = self.object_memory.get(binding.object_id)
@@ -144,6 +148,9 @@ class PerceptualLearner:
                 "visibility": obj.visibility.value,
                 "observation_count": obj.observation_count,
             }
+            error = prediction_error(binding, bbps[selected_index].bbox, self.cfg.prediction)
+            self.prediction_stats.record(error)
+            prediction = {"status": "ok", **error.to_dict()}
             episode = self.episodic_memory.record(
                 bbp=bbps[selected_index],
                 object_id=binding.object_id,
@@ -182,6 +189,7 @@ class PerceptualLearner:
                 "transitions": [t.to_dict() for t in transitions],
             },
             "learning": learning,
+            "prediction": prediction,
             "graph": {**self.graph.counts(), "cooccurrence_pairs": cooccurrence_pairs},
         }
 
@@ -194,4 +202,5 @@ class PerceptualLearner:
             "prototype_count": len(self.prototype_memory),
             "episodes": self.episodic_memory.counts(),
             "graph": self.graph.counts(),
+            "prediction": self.prediction_stats.to_dict(),
         }
