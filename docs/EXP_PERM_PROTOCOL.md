@@ -53,6 +53,25 @@ can be reported separately.
    are what define reacquisition attempts. Annotate every object in the frame, not
    only the attended one, so a change in attention does not need re-annotation.
 
+   Start from the log instead of drawing boxes. The bootstrap turns every logged
+   BBP into a candidate box and assigns provisional ids by chaining boxes across
+   consecutive frames; it never bridges a gap, so the ids break exactly at the
+   occlusions and returns you scripted. Review the printed segment table, then
+   repair the ids and name them:
+
+   ```bash
+   python experiments/truth_bootstrap.py bootstrap outputs/session_seed0_<time>.jsonl \
+       --output clips/mugs_occlusion.truth.json --sha256 <hash>
+   python experiments/truth_bootstrap.py relabel clips/mugs_occlusion.truth.json \
+       --merge t004=t001 t007=t001 --drop t005 --name t001=red_mug t002=blue_mug
+   ```
+
+   `--min-confidence` drops weak detections, `--max-gap N` lets a chain skip up to
+   N logged frames, and a merge that puts two boxes of one id in a frame keeps the
+   higher-confidence box and reports the collision. The session's git commit is
+   logged in `session_start.code_revision` and copied into the truth file's
+   provenance.
+
    ```json
    {
      "source": {"uri": "clips/mugs_occlusion.mp4", "sha256": "<hash>"},

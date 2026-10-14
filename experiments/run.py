@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import random
+import subprocess
 import sys
 import time
 from dataclasses import asdict, replace
@@ -32,6 +33,19 @@ from perception.yolo_adapter import YoloBbpGenerator  # noqa: E402
 def _seed_everything(seed: int) -> None:
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
+
+
+def code_revision() -> str | None:
+    """Git commit of the running code, for session provenance; ``None`` if unknown."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=_REPO_ROOT, capture_output=True,
+            text=True, timeout=5, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    revision = result.stdout.strip()
+    return revision if result.returncode == 0 and revision else None
 
 
 def graph_snapshot_path(session_path: Path) -> Path:
@@ -67,6 +81,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
                 config_metrics.pop("preview")
             start_event = {
                 "event": "session_start",
+                "code_revision": code_revision(),
                 "config": config_metrics,
                 "embedding_schema": simple_embedding_schema(),
                 "cognition_schema": learner.schema(),

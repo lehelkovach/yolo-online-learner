@@ -25,6 +25,8 @@ This repo now includes a minimal **Phase-1 scaffold**:
 - `experiments/replay.py`: replay a session JSONL and verify every decision reproduces
 - `experiments/identity_eval.py` + `experiments/sweep.py`: EXP-PERM identity scoring against
   ground truth and offline threshold sweeps (`docs/EXP_PERM_PROTOCOL.md`)
+- `experiments/truth_bootstrap.py`: provisional ground truth from a session log, repaired with
+  `relabel --merge/--name/--drop` instead of drawing boxes by hand
 
 ### Install
 
@@ -83,14 +85,19 @@ and embeddings back through them and reports any decision that does not reproduc
 ### Validate object identity against ground truth (EXP-PERM)
 
 ```bash
+python experiments/truth_bootstrap.py bootstrap outputs/session_seed0_<time>.jsonl --output clip.truth.json
+python experiments/truth_bootstrap.py relabel clip.truth.json --merge t004=t001 --name t001=red_mug
 python experiments/identity_eval.py outputs/session_seed0_<time>.jsonl --truth clip.truth.json
 python experiments/sweep.py outputs/session_seed0_<time>.jsonl --truth clip.truth.json \
     --match-threshold 0.55 0.65 0.75 --reid-threshold 0.7 0.85
 ```
 
-The evaluator reports ID switches, fragmentation, merges, purity, reacquisition
-after every annotated absence and position error at reacquisition. The sweep
-replays the same log under threshold variants plus a `no_permanence` baseline.
+The bootstrap chains logged BBPs into provisional truth ids that break at every
+absence, so you only merge and name ids instead of drawing boxes. The evaluator
+reports ID switches, fragmentation, merges, purity, reacquisition after every
+annotated absence and position error at reacquisition. The sweep replays the
+same log under threshold variants plus a `no_permanence` baseline. Every session
+logs its git commit as `code_revision`.
 Recording, annotation format and the pass/fail rule: `docs/EXP_PERM_PROTOCOL.md`.
 
 ### Observe BBPs and attention live
