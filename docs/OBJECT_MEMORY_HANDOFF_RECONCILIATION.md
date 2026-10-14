@@ -297,6 +297,12 @@ the evaluator (zero switches, two of two reacquisitions) and shows the
   on it and the appearance check corrects the binding.
 - `identity_confidence` currently stores the last match score; calibration is
   future work.
+- Re-identification of absent objects uses the flat `absent_spatial_prior` by
+  default. `absent_uncertainty_growth` adds a centre kernel around the last box
+  that widens per missed frame; on the pedestrian clip it made identity worse
+  (`docs/EXP_PERM_FIRST_RUN.md` §7), so it stays off and is meant for scripted
+  occlusions where an object returns where it left. The open identity mechanism
+  is merging near-duplicate object files that compete for one track.
 
 ## 6. Related unmerged branches
 

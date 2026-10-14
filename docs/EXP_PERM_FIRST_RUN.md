@@ -169,3 +169,47 @@ problem of §2 (absent objects with a flat prior) plus true association
 ambiguity, which the one-attended-crop design resolves only when attention
 lands on the object. Both are what a hand-annotated scripted-occlusion clip
 should measure next; `top_down` stays opt-in until then.
+
+## 7. Negative result: positional uncertainty for absent objects
+
+§2 proposed that a LOST object should predict its last box with uncertainty that
+grows while it is hidden, instead of the flat spatial prior. That is now
+`BinderConfig.absent_uncertainty_growth` (default 0, which keeps the flat prior
+exactly): the absent object's spatial evidence becomes the larger of the prior and
+a centre kernel around its last box whose scale widens by the growth factor per
+missed frame. Because binder settings replay offline, the sweep answers directly
+(track-update logs, YOLO encoder, same provisional truth):
+
+| prior / growth | proxy: files, switches, purity | top_down: files, switches, purity |
+|---|---|---|
+| 0.5 / 0 (logged) | 8, 10, 0.74 | 16, 55, 0.51 |
+| 0.5 / 0.5 | 9, 17, 0.76 | 13, 170, 0.33 |
+| 0.1 / 0.5 | 11, 22, 0.74 | 13, 176, 0.29 |
+| 0.1 / 1.0 | 10, 13, 0.77 | 13, 181, 0.30 |
+| 0.1 / 0 | 25, 24, 0.82 | 52, 187, 0.42 |
+
+Every variant is worse than the flat prior on this clip. The reason is the scene:
+pedestrians walk through the same corridors, so a newcomer passing the spot where
+someone vanished is now *more* likely to inherit that identity, and under
+top-down attention, which looks at the corridors, identities swap. The far-away
+reappearance the kernel guards against was not the dominant failure here. The
+option stays, default off, for the scripted-occlusion protocol where an object
+returns where it left; it is not a fix for crowds.
+
+The threshold sweep on the same logs completes the picture:
+
+| match / reid | proxy: files, switches, purity | top_down: files, switches, purity |
+|---|---|---|
+| 0.65 / 0.75 (logged) | 8, 10, 0.74 | 16, 55, 0.51 |
+| 0.75 / 0.75 | 10, 8, 0.78 | 17, 164, 0.36 |
+| 0.75 / 0.85 | 17, 8, 0.85 | 33, 192, 0.35 |
+| 0.65 / 0.85 | 25, 24, 0.82 | 52, 187, 0.42 |
+
+Under proxy attention a modest tightening helps a little. Under top-down
+attention any tightening is harmful for a structural reason: a stricter binder
+creates a second object file for a person it fails to re-match, and the
+one-to-one track update then lets the old (OCCLUDED) and the new file fight over
+the same boxes frame after frame. That is the "merge near-duplicates" hardening
+the architecture map §4 lists, and it is the next identity mechanism: when a
+newly created object and an existing absent one repeatedly claim the same track,
+merge them and keep the older id. Thresholds cannot substitute for it.
