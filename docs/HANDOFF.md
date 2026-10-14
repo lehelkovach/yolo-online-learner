@@ -12,6 +12,7 @@
   - `experiments/replay.py` (replays a JSONL log and verifies every decision reproduces)
   - `experiments/identity_eval.py` (scores object identity against ground truth, EXP-PERM)
   - `experiments/sweep.py` (replays one log under threshold variants and scores each)
+  - `experiments/truth_bootstrap.py` (provisional ground truth from a log; merge/name/drop ids)
 - **Sanity tests + lint config**: `pytest`, `ruff`
 
 ### When to move to local development

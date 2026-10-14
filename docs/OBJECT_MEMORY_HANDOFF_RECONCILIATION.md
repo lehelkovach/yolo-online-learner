@@ -196,9 +196,14 @@ when a file is created); the fixed-key schema for unbound frames carries the sam
 key. `sweep.py` replays one log through `PerceptualLearner` under configuration
 variants (`replay_events_with_learner(events, cfg=...)`), always including the
 logged configuration, which it checks reproduces the log, and a `no_permanence`
-baseline that forgets an object after two consecutive misses. The protocol, the
-annotation format and the pre-declared pass/fail rule are in
-`docs/EXP_PERM_PROTOCOL.md`.
+baseline that forgets an object after two consecutive misses.
+`truth_bootstrap.py` makes the annotation cheap: it chains the logged BBPs into
+provisional truth ids that break at every absence, prints a segment table, and
+repairs ids with `relabel --merge/--name/--drop` (collisions keep the
+higher-confidence box and are reported). `session_start` now records the git
+commit as `code_revision`, which the bootstrap copies into the truth file's
+provenance. The protocol, the annotation format and the pre-declared pass/fail
+rule are in `docs/EXP_PERM_PROTOCOL.md`.
 
 ### Tests
 
