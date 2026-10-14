@@ -297,12 +297,19 @@ the evaluator (zero switches, two of two reacquisitions) and shows the
   on it and the appearance check corrects the binding.
 - `identity_confidence` currently stores the last match score; calibration is
   future work.
+- Present (VISIBLE/OCCLUDED) objects are spatially gated:
+  `present_spatial_gate` (default 0.5) rejects a candidate far from the predicted
+  box whatever its appearance, because YOLO features score 0.9+ between any two
+  pedestrians and the additive score let present objects teleport. Live on the
+  pedestrian clip it cut within-track switches from 55 to 12 under top-down
+  attention (`docs/EXP_PERM_FIRST_RUN.md` §8). 0 restores the additive baseline.
 - Re-identification of absent objects uses the flat `absent_spatial_prior` by
   default. `absent_uncertainty_growth` adds a centre kernel around the last box
-  that widens per missed frame; on the pedestrian clip it made identity worse
-  (`docs/EXP_PERM_FIRST_RUN.md` §7), so it stays off and is meant for scripted
-  occlusions where an object returns where it left. The open identity mechanism
-  is merging near-duplicate object files that compete for one track.
+  that widens per missed frame; under proxy attention on the pedestrian clip it
+  made identity worse (§7), so it stays off and is meant for scripted
+  occlusions where an object returns where it left.
+- Offline sweeps are faithful only for open-loop (`proxy`) attention; top-down
+  variants are re-run live (§8).
 
 ## 6. Related unmerged branches
 
