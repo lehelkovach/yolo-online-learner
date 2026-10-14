@@ -124,12 +124,41 @@ def replay_variant(
     return out, trace
 
 
+class FrozenAttentionError(ValueError):
+    """The log was recorded with closed-loop attention, so offline variants mislead."""
+
+
+def check_open_loop(events: list[dict[str, Any]]) -> str:
+    """Return the logged attention mode; raise unless it is open-loop (``proxy``).
+
+    Under ``top_down`` attention the selections depend on memory, so a variant
+    whose memory diverges keeps receiving selections made for a different state
+    and identity cascades for reasons unrelated to the variant. On the recorded
+    clip a spatial gate measured 171 switches offline and 22 live. Such logs must
+    be re-run live; the proxy policy ignores memory and its sweeps reproduce live
+    runs exactly.
+    """
+    start = next(event for event in events if event["event"] == "session_start")
+    mode = str(start.get("config", {}).get("attention", {}).get("mode", "proxy"))
+    if mode != "proxy":
+        raise FrozenAttentionError(
+            f"log was recorded with attention mode {mode!r}: selections depend on memory, "
+            "so offline variants are not faithful; re-run the variants live or pass "
+            "--allow-frozen-attention to sweep anyway"
+        )
+    return mode
+
+
 def sweep(
     events: list[dict[str, Any]],
     truth: GroundTruth,
     variants: list[tuple[str, Overrides]],
+    *,
+    allow_frozen_attention: bool = False,
 ) -> list[dict[str, Any]]:
     """Score every variant; the unmodified variant also checks that the log reproduces."""
+    if not allow_frozen_attention:
+        check_open_loop(events)
     start = next(event for event in events if event["event"] == "session_start")
     base = config_from_event(start)
     results: list[dict[str, Any]] = []
@@ -160,6 +189,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--no-baseline", action="store_true", help="skip the no_permanence baseline"
     )
+    parser.add_argument(
+        "--allow-frozen-attention", action="store_true",
+        help="sweep a top_down log anyway (results are not faithful; re-run live instead)",
+    )
     parser.add_argument("--output", help="write all variant reports as JSON")
     args = parser.parse_args(argv)
 
@@ -180,7 +213,19 @@ def main(argv: list[str] | None = None) -> int:
 
     events = load_events(args.session)
     truth = load_ground_truth(args.truth)
-    results = sweep(events, truth, variants)
+    try:
+        results = sweep(
+            events, truth, variants, allow_frozen_attention=args.allow_frozen_attention
+        )
+    except FrozenAttentionError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
+    if args.allow_frozen_attention:
+        try:
+            check_open_loop(events)
+        except FrozenAttentionError:
+            print("warning: closed-loop attention log; these numbers are not faithful, "
+                  "re-run the variants live", file=sys.stderr)
     for entry in results:
         flag = ""
         if "reproduces_log" in entry:

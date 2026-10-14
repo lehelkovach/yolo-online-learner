@@ -244,6 +244,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--match-threshold", type=float, default=binder_defaults.match_threshold)
     p.add_argument("--reid-threshold", type=float, default=binder_defaults.reid_threshold)
     p.add_argument(
+        "--present-spatial-gate", type=float, default=binder_defaults.present_spatial_gate,
+        help="minimum spatial similarity for a VISIBLE/OCCLUDED object to match at all",
+    )
+    p.add_argument(
+        "--absent-uncertainty-growth", type=float,
+        default=binder_defaults.absent_uncertainty_growth,
+        help="per-missed-frame widening of the positional kernel for LOST/DORMANT objects",
+    )
+    p.add_argument(
         "--occluded-after", type=int, default=permanence_defaults.occluded_after_frames
     )
     p.add_argument("--lost-after", type=int, default=permanence_defaults.lost_after_frames)
@@ -314,6 +323,8 @@ def main(argv: list[str] | None = None) -> int:
             binder_defaults,
             match_threshold=args.match_threshold,
             reid_threshold=args.reid_threshold,
+            present_spatial_gate=args.present_spatial_gate,
+            absent_uncertainty_growth=args.absent_uncertainty_growth,
         ),
         permanence=replace(
             permanence_defaults,

@@ -112,6 +112,11 @@ can be reported separately.
    can be given with `--variants variants.json`, a list of
    `{"name": ..., "overrides": {"binder": {...}, "permanence": {...}}}`.
 
+   Sweeps are faithful only for the open-loop `proxy` attention, whose
+   selections do not depend on memory; the tool refuses a `top_down` log unless
+   `--allow-frozen-attention` is passed, and such variants must be re-run live
+   (`docs/EXP_PERM_FIRST_RUN.md` §8).
+
 ## 3. Pre-declared decision rule
 
 - **Pass:** with the logged default configuration, zero ID switches across the

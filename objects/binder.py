@@ -36,6 +36,14 @@ class BinderConfig:
     class_unknown_similarity: float = 1.0
     # ``None`` = exact running mean; float = learning-rate update of object appearance.
     appearance_eta: float | None = None
+    # A VISIBLE/OCCLUDED object knows roughly where it is: a candidate whose spatial
+    # similarity to the predicted box is below this cannot be that object, whatever
+    # its appearance says. 0 restores the purely additive score (the baseline). On
+    # the recorded clip pedestrians scored appearance 0.9+ against each other, so
+    # present objects were matched to people on the other side of the frame; the
+    # gate cut within-track ID switches from 55 to 12 under top-down attention
+    # (docs/EXP_PERM_FIRST_RUN.md §8).
+    present_spatial_gate: float = 0.5
 
     def __post_init__(self) -> None:
         for name in ("match_threshold", "reid_threshold", "absent_spatial_prior"):
@@ -49,6 +57,8 @@ class BinderConfig:
             raise ValueError("spatial_distance_scale must be positive")
         if self.absent_uncertainty_growth < 0.0:
             raise ValueError("absent_uncertainty_growth must be non-negative")
+        if not 0.0 <= self.present_spatial_gate <= 1.0:
+            raise ValueError("present_spatial_gate must be in [0, 1]")
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -63,10 +73,12 @@ class CandidateScore:
     class_compatibility: float
     visibility: VisibilityState
     threshold: float
+    # False when a present object's candidate failed the spatial gate.
+    spatially_possible: bool = True
 
     @property
     def accepted(self) -> bool:
-        return self.score >= self.threshold
+        return self.spatially_possible and self.score >= self.threshold
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,6 +188,7 @@ class ObjectBinder:
             + cfg.spatial_weight * spatial
             + cfg.class_weight * klass
         )
+        possible = obj.visibility in ABSENT_STATES or spatial >= cfg.present_spatial_gate
         return CandidateScore(
             object_id=obj.object_id,
             score=total,
@@ -184,6 +197,7 @@ class ObjectBinder:
             class_compatibility=klass,
             visibility=obj.visibility,
             threshold=threshold,
+            spatially_possible=possible,
         )
 
     def rank(

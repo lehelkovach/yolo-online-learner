@@ -172,6 +172,13 @@ should measure next; `top_down` stays opt-in until then.
 
 ## 7. Negative result: positional uncertainty for absent objects
 
+**Correction (see §8):** the `top_down` columns in this section were computed
+offline and are not valid. Top-down attention is closed-loop, so a sweep that
+replays the logged selections against a diverged memory cascades for reasons
+unrelated to the variant. Only the `proxy` columns stand. The negative result
+for the absent-object kernel holds under proxy attention (10 switches to 13-22)
+and is unmeasured under top-down attention.
+
 §2 proposed that a LOST object should predict its last box with uncertainty that
 grows while it is hidden, instead of the flat spatial prior. That is now
 `BinderConfig.absent_uncertainty_growth` (default 0, which keeps the flat prior
@@ -213,3 +220,43 @@ the same boxes frame after frame. That is the "merge near-duplicates" hardening
 the architecture map §4 lists, and it is the next identity mechanism: when a
 newly created object and an existing absent one repeatedly claim the same track,
 merge them and keep the older id. Thresholds cannot substitute for it.
+
+## 8. The spatial gate, and why top-down logs cannot be swept offline
+
+Reading the top-down track log frame by frame showed the real failure: at frame
+1 a VISIBLE object was bound to a box with spatial similarity **0.02**, on the
+other side of the frame, because appearance 0.94 plus the class hint cleared the
+additive 0.65 threshold on their own; the same at frames 4, 5 and 9. With YOLO
+features every pedestrian scores 0.9 or more against every other, so a present
+object could teleport onto any person. A present object knows roughly where it
+is, so position must gate the match rather than merely weigh in:
+`BinderConfig.present_spatial_gate` rejects a VISIBLE or OCCLUDED candidate whose
+spatial similarity to the predicted box is below the gate, whatever its
+appearance; absent objects are untouched (the prior applies). It is now the
+default (0.5); 0 restores the additive baseline.
+
+Measured **live** (YOLO encoder, track update, same provisional truth):
+
+| | proxy | top_down |
+|---|---|---|
+| switches, gate 0 (before) | 10 | 55 |
+| switches, gate 0.3 | | 22 |
+| switches, gate 0.5 | **7** | **12** |
+| purity, gate 0 to 0.5 | 0.74 to 0.78 | 0.51 to 0.56 |
+| mean position error, gate 0 to 0.5 | 0.10 to 0.055 | 0.23 to 0.07 |
+| frames attending a person (gate 0.5) | 113 | 241 |
+
+Under top-down attention, which attends the crowd, within-track switches fall
+from 55 to 12 and the position error of fulfilled predictions drops to 0.07
+diagonals. The `no_permanence` baseline sits at 32 (proxy). The remaining errors
+are in the standing group at the top right, where boxes overlap; a
+hand-annotated scripted-occlusion clip is still the proper measurement.
+
+**Methodology.** The same gate measured offline with `sweep.py` on the top-down
+log gave 171 switches (gate 0.3) and 166 (gate 0.5). The live proxy run
+reproduces its sweep exactly (7 switches, purity 0.776), so the tool is right
+for open-loop attention; the top-down selections depend on memory, and once a
+variant's memory diverges the frozen selections stop refreshing the right
+objects and identity cascades. `sweep.py` now refuses a log whose attention
+mode is not `proxy` unless `--allow-frozen-attention` is passed, and every
+top-down comparison in this document from here on is a live re-run.
