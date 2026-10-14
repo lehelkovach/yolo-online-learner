@@ -77,6 +77,7 @@ The handoff numbers its own stages 1-12. They are not the canonical
 | 11 consolidation | new | `consolidation/` | after 7-10 |
 | 12 KSG adapter stub | thin KSG writer | `adapters/ksg.py` | last |
 | run.py integration | Stage 0 harness | `experiments/cognition.py`, `experiments/replay.py` | done for 1-7 and 10 |
+| EXP-PERM harness | "categories after tracking" gate | `experiments/identity_eval.py`, `experiments/sweep.py` | done; recorded-clip run pending |
 
 Canonical Stage 5 (top-down expected embedding and prediction error) and Stage 8
 (K-slot working memory) are not in the handoff's sprint list but remain planned;
@@ -183,23 +184,44 @@ learner from those, feeds the logged BBPs and embeddings back through it and
 diffs every decision (floats within 1e-9). A `cognition_summary` event precedes
 `session_end`.
 
+### Identity evaluation and threshold sweep (`experiments/identity_eval.py`, `experiments/sweep.py`)
+
+`identity_eval.py` scores a session log against a ground-truth JSON (per-frame
+boxes with physical-object ids, matched to the attended BBP by IoU): ID switches,
+fragmentation, merges, purity, reacquisition after each annotated absence, and
+position error of the object file's predicted box at reacquisition. To make the
+last endpoint computable offline, every binding now logs `predicted_bbox`, the
+box the matched object file predicted for that frame before the update (`null`
+when a file is created); the fixed-key schema for unbound frames carries the same
+key. `sweep.py` replays one log through `PerceptualLearner` under configuration
+variants (`replay_events_with_learner(events, cfg=...)`), always including the
+logged configuration, which it checks reproduces the log, and a `no_permanence`
+baseline that forgets an object after two consecutive misses. The protocol, the
+annotation format and the pre-declared pass/fail rule are in
+`docs/EXP_PERM_PROTOCOL.md`.
+
 ### Tests
 
 `tests/test_encoder_interface.py`, `test_object_file.py`, `test_object_binder.py`,
 `test_object_permanence.py`, `test_prototype_memory.py`, `test_novelty.py`,
 `test_episodic_memory.py`, `test_percept_graph_memory.py`, and
-`test_cognitive_replay.py`. The last one is the sprint acceptance scenario: red
-mug A appears, moves, is occluded, returns, blue mug B and headphones C appear, A
-leaves for ten frames and returns elsewhere. A keeps one UUID through OCCLUDED
-and LOST, B and C get distinct UUIDs, three prototypes form, and the trace replays
-from the log with zero mismatches. All pre-existing tests are unchanged.
+`test_cognitive_replay.py`, and `test_identity_eval.py`. The replay test is the
+sprint acceptance scenario, now shared from `tests/identity_scenario.py` so the
+EXP-PERM tests can reuse it: red mug A appears, moves, is occluded, returns, blue
+mug B and headphones C appear, A leaves for ten frames and returns elsewhere. A
+keeps one UUID through OCCLUDED and LOST, B and C get distinct UUIDs, three
+prototypes form, and the trace replays from the log with zero mismatches. Its
+assertions are unchanged; `test_identity_eval.py` scores the same scenario with
+the evaluator (zero switches, two of two reacquisitions) and shows the
+`no_permanence` baseline failing it (two switches, zero of two).
 
 ## 5. Known limits of this baseline
 
 - The simple 10-d embedding separates the synthetic objects cleanly; on real
   video, appearance similarity between different objects of the same colour
-  and shape will be high. Thresholds are configuration, and the replay tool
-  exists so threshold sweeps can be run offline on one recorded log.
+  and shape will be high. Thresholds are configuration; `experiments/sweep.py`
+  runs threshold sweeps offline on one recorded log and `identity_eval.py` scores
+  them, so the question is answerable from a single recording.
 - Only the attended BBP updates appearance. A long-visible but never-attended
   object stays VISIBLE via glimpses but its embedding does not drift with it.
 - Glimpses use IoU only; a different object passing through the predicted box
@@ -223,9 +245,12 @@ that the handoff intentionally defers.
 ## 7. Next steps in handoff order
 
 1. Validate object identity on a hashed recorded clip with controlled occlusion
-   (EXP-PERM endpoints: reacquisition, ID switches) before category learning.
-   If the simple crop embedding cannot separate similar objects, add a stronger
-   `PerceptEncoder` (DINOv2-small) before continuing.
+   (EXP-PERM endpoints: reacquisition, ID switches, position error) before
+   category learning. The harness, annotation format and decision rule are in
+   `docs/EXP_PERM_PROTOCOL.md`; what remains is recording and annotating the clip
+   locally and running the two commands there. If the simple crop embedding
+   cannot separate similar objects, add a stronger `PerceptEncoder`
+   (DINOv2-small) before continuing.
 2. Category memory and learner (`categories/`), adding `category` nodes and
    `INSTANCE_OF` edges to the graph.
 3. Consolidation proposals with evidence ids drawn from episodic memory, then the

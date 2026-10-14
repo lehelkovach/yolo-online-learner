@@ -54,6 +54,7 @@ def empty_object_file_metrics(status: str) -> dict[str, Any]:
         "spatial_similarity": None,
         "class_compatibility": None,
         "runner_up_score": None,
+        "predicted_bbox": None,
         "visibility": None,
         "observation_count": None,
     }

@@ -75,6 +75,9 @@ class BindingResult:
     spatial_similarity: float | None = None
     class_compatibility: float | None = None
     runner_up_score: float | None = None
+    # Box the matched object file predicted for this frame before the update was applied,
+    # so position error at reacquisition can be measured offline. ``None`` when created.
+    predicted_bbox: tuple[float, float, float, float] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -90,6 +93,9 @@ class BindingResult:
             "spatial_similarity": self.spatial_similarity,
             "class_compatibility": self.class_compatibility,
             "runner_up_score": self.runner_up_score,
+            "predicted_bbox": (
+                None if self.predicted_bbox is None else list(self.predicted_bbox)
+            ),
         }
 
 

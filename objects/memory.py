@@ -137,6 +137,7 @@ class ObjectMemory:
 
         obj = self._objects[best.object_id]
         previous = obj.visibility
+        predicted = obj.predicted_bbox(bbp.frame_idx).as_xyxy()
         obj.update(
             timestamp_s=bbp.timestamp_s,
             frame_idx=bbp.frame_idx,
@@ -159,6 +160,7 @@ class ObjectMemory:
             spatial_similarity=best.spatial_similarity,
             class_compatibility=best.class_compatibility,
             runner_up_score=runner_up,
+            predicted_bbox=predicted,
         )
 
     def glimpse(self, bbps: Sequence[BBP], *, frame_idx: int) -> list[str]:

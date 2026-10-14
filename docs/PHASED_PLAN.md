@@ -8,8 +8,11 @@ the foundation. Delivered so far: Stage 2 attention, Stage 3 embeddings behind a
 `PerceptEncoder` interface, the object-file/permanence half of Stage 9 (no neural
 tracker), Stage 4 prototype memory with memory-relative novelty, episodic memory
 of attended observations, and a typed object/observation/prototype layer on the
-Stage 7 percept graph, all logged and replayable. Next in order: a real-clip
-identity check, categories, consolidation proposals, then the KSG sink. Stage 5 and Stage 8 remain
+Stage 7 percept graph, all logged and replayable. The EXP-PERM harness
+(`experiments/identity_eval.py`, `experiments/sweep.py`, protocol in
+`docs/EXP_PERM_PROTOCOL.md`) is in place; the recorded-clip run itself is the open
+gate. Next in order: that real-clip identity check, categories, consolidation
+proposals, then the KSG sink. Stage 5 and Stage 8 remain
 planned and build on object files. Stages 6 and 7 retain their numbers below;
 Stage 7's graph substrate is reused by the percept-graph integration step.
 

@@ -10,6 +10,8 @@
   - `scripts/run_bbp_stream.py` (debug CLI)
   - `experiments/run.py` (session logger; JSONL output)
   - `experiments/replay.py` (replays a JSONL log and verifies every decision reproduces)
+  - `experiments/identity_eval.py` (scores object identity against ground truth, EXP-PERM)
+  - `experiments/sweep.py` (replays one log under threshold variants and scores each)
 - **Sanity tests + lint config**: `pytest`, `ruff`
 
 ### When to move to local development

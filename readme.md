@@ -23,6 +23,8 @@ This repo now includes a minimal **Phase-1 scaffold**:
 - `memory/episodes.py`: episodic memory of attended observations (provenance for later layers)
 - `graph/memory_graph.py`: object/observation/prototype nodes and typed edges on the NetworkX percept graph
 - `experiments/replay.py`: replay a session JSONL and verify every decision reproduces
+- `experiments/identity_eval.py` + `experiments/sweep.py`: EXP-PERM identity scoring against
+  ground truth and offline threshold sweeps (`docs/EXP_PERM_PROTOCOL.md`)
 
 ### Install
 
@@ -78,6 +80,19 @@ Every `frame` event carries `object_file`, `object_memory` and `learning` blocks
 tool rebuilds the memories from the logged config and seed, feeds the logged BBPs
 and embeddings back through them and reports any decision that does not reproduce.
 
+### Validate object identity against ground truth (EXP-PERM)
+
+```bash
+python experiments/identity_eval.py outputs/session_seed0_<time>.jsonl --truth clip.truth.json
+python experiments/sweep.py outputs/session_seed0_<time>.jsonl --truth clip.truth.json \
+    --match-threshold 0.55 0.65 0.75 --reid-threshold 0.7 0.85
+```
+
+The evaluator reports ID switches, fragmentation, merges, purity, reacquisition
+after every annotated absence and position error at reacquisition. The sweep
+replays the same log under threshold variants plus a `no_permanence` baseline.
+Recording, annotation format and the pass/fail rule: `docs/EXP_PERM_PROTOCOL.md`.
+
 ### Observe BBPs and attention live
 
 ```bash
@@ -95,6 +110,7 @@ detection and attention only; learned prototype strength arrives in Stage 4.
 - `docs/COGNITIVE_ARCHITECTURE_MAP.md`: consolidated architecture, research hypotheses, and experiment gates
 - `docs/RESEARCH_HANDOFF_RECONCILIATION.md`: crosswalk from the revised research handoff to the canonical stage plan
 - `docs/OBJECT_MEMORY_HANDOFF_RECONCILIATION.md`: object files, permanence, prototype memory and replay (current sprint)
+- `docs/EXP_PERM_PROTOCOL.md`: recorded-clip identity validation (endpoints, annotation format, decision rule)
 - `docs/DEBUGGING.md`: debugging + refactor guidance
 - `docs/OBS_SETUP.md`: OBS recording setup for studies
 - `docs/REFERENCE_REPOS.md`: reference repos/libraries to fork or borrow from
