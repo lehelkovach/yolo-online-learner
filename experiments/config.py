@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from features.simple_embedding import SIMPLE_EMBEDDING_SPACE_ID
 from graph.memory_graph import MemoryGraphConfig
 from memory.episodes import EpisodicMemoryConfig
+from memory.prediction import PredictionConfig
 from memory.prototypes import PrototypeMemoryConfig
 from objects.binder import BinderConfig
 from objects.memory import PermanenceConfig
@@ -39,3 +40,4 @@ class ExperimentConfig:
     prototypes: PrototypeMemoryConfig = field(default_factory=_default_prototype_config)
     episodes: EpisodicMemoryConfig = field(default_factory=EpisodicMemoryConfig)
     graph: MemoryGraphConfig = field(default_factory=MemoryGraphConfig)
+    prediction: PredictionConfig = field(default_factory=PredictionConfig)

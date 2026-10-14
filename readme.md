@@ -21,6 +21,7 @@ This repo now includes a minimal **Phase-1 scaffold**:
 - `objects/`: `ObjectFile`, `ObjectBinder`, `ObjectMemory` (visibility/permanence)
 - `memory/prototypes.py`: bounded prototype bank + memory-relative novelty
 - `memory/episodes.py`: episodic memory of attended observations (provenance for later layers)
+- `memory/prediction.py`: typed prediction error against each object file's top-down expectation
 - `graph/memory_graph.py`: object/observation/prototype nodes and typed edges on the NetworkX percept graph
 - `experiments/replay.py`: replay a session JSONL and verify every decision reproduces
 - `experiments/identity_eval.py` + `experiments/sweep.py`: EXP-PERM identity scoring against
@@ -74,8 +75,9 @@ python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
 python experiments/replay.py outputs/session_seed0_<time>.jsonl
 ```
 
-Every `frame` event carries `object_file`, `object_memory` and `learning` blocks
-(object-file binding, occlusion/loss state, memory-relative novelty) plus the
+Every `frame` event carries `object_file`, `object_memory`, `learning` and
+`prediction` blocks (object-file binding, occlusion/loss state, memory-relative
+novelty, typed prediction error against the object's expectation) plus the
 `observation_id` of the episodic event recorded for the attended percept and
 `graph` counts. A sorted percept-graph snapshot is written next to the log as
 `<session>_graph.json`; the replay tool checks it too. The replay

@@ -23,6 +23,7 @@ from features.simple_embedding import (  # noqa: E402
     attended_embedding_metrics,
     simple_embedding_schema,
 )
+from memory.prediction import PredictionConfig  # noqa: E402
 from memory.prototypes import PrototypeMemoryConfig  # noqa: E402
 from objects.binder import BinderConfig  # noqa: E402
 from objects.memory import PermanenceConfig  # noqa: E402
@@ -226,6 +227,10 @@ def main(argv: list[str] | None = None) -> int:
         "--no-prototype-learning", action="store_true",
         help="score novelty but never create or update prototypes (baseline)",
     )
+    p.add_argument(
+        "--violation-threshold", type=float, default=PredictionConfig().violation_threshold,
+        help="appearance error at or above this types an expected observation as violated",
+    )
     args = p.parse_args(argv)
 
     try:
@@ -265,6 +270,7 @@ def main(argv: list[str] | None = None) -> int:
             spawn_cooldown=args.spawn_cooldown,
             learning_enabled=not args.no_prototype_learning,
         ),
+        prediction=PredictionConfig(violation_threshold=args.violation_threshold),
     )
     out_path = run_session(cfg)
     print(str(out_path))
