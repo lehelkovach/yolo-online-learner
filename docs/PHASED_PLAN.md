@@ -31,14 +31,15 @@ Stage 7's graph substrate is reused by the percept-graph integration step.
 
 - Select 1 BBP per frame (WTA) with inhibition-of-return.
 - Tests: exactly one selection; no “stuck” fixation.
-- Status: the confidence/area proxy is the default. `AttentionConfig.mode =
-  "top_down"` (opt-in, `--attention top_down`) ranks BBPs by the object files'
-  expectations (unexpected first, then violated expectations, then staleness,
-  confidence as a weak tie-break) with object-based inhibition of return; every
-  component is logged and the decision is regenerated and checked by replay.
-  On the first recorded clip it moves attention from parked vehicles to the
-  pedestrians; it becomes the default once the Stage 9 spatial track update
-  makes identity hold up under it (`docs/EXP_PERM_FIRST_RUN.md` §5).
+- Status: `AttentionConfig.mode = "top_down"` is the default: BBPs are ranked
+  by the object files' expectations (unexpected first, then violated
+  expectations, then staleness, confidence as a weak tie-break) with a
+  three-frame object-based inhibition of return; every component is logged and
+  the decision is regenerated and checked by replay. The Stage 2 confidence/area
+  proxy remains the baseline (`--attention proxy --ior-frames 1`). The flip
+  followed the Stage 9 track update and the spatial gate, which made identity
+  hold up under the policy that actually scans the scene
+  (`docs/EXP_PERM_FIRST_RUN.md` §8-9).
 
 ### Stage 3 — Simple embeddings (no deep nets yet)
 

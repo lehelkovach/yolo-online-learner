@@ -260,3 +260,34 @@ variant's memory diverges the frozen selections stop refreshing the right
 objects and identity cascades. `sweep.py` now refuses a log whose attention
 mode is not `proxy` unless `--allow-frozen-attention` is passed, and every
 top-down comparison in this document from here on is a live re-run.
+
+## 9. Full clip, and top-down attention becomes the default
+
+With the track update and the spatial gate in place, the whole clip (795 frames,
+about 60 s per run on four CPU cores) was run live in both policies:
+
+| | proxy | top_down |
+|---|---|---|
+| frames attending a person | 243 (31%) | 604 (76%) |
+| frames on static van / car / bench | 64% | 20% |
+| object files created | 23 | 30 |
+| prototypes (cap 64) | 62 | 58 |
+| OCCLUDED / LOST / DORMANT transitions | 113 / 59 / 39 | 163 / 84 / 58 |
+| mean appearance / position error | 0.048 / 0.047 | 0.080 / 0.073 |
+| working-memory loads / evictions (K=4) | 150 / 121 | 665 / 657 |
+| replay | 0 mismatches | 0 mismatches |
+
+Memory stays bounded (objects, prototypes, graph nodes and working-memory
+occupancy), every decision replays, and the top-down policy spends three
+quarters of its budget on the people. Its identity numbers on the 300-frame
+truth (12 switches, purity 0.56) are still below the proxy's (7, 0.78), but the
+proxy earns those by looking at parked vehicles two thirds of the time, which
+is not the task. `top_down` with a three-frame object inhibition is therefore the
+default from here; the proxy stays as the Stage 2 baseline
+(`--attention proxy --ior-frames 1`), and the synthetic identity scenario, whose
+frame-by-frame assertions were written for the proxy, is pinned to it.
+
+Working memory churns under top-down attention (665 loads for 795 frames with
+four slots): attention round-robins over more objects than fit. That is the
+expected behaviour of a capacity-four register in a crowd, and the first
+real-data input for the Stage 8 eviction and the later goal-relevance term.

@@ -2,11 +2,12 @@
 
 Two priority policies, selected by ``AttentionConfig.mode``:
 
-``proxy`` (the Stage 2 baseline): ``(1 - confidence) * max(1 - confidence, eps) *
-area / max_area`` with spatial inhibition of return over the last winners' boxes.
-Confidence and area are temporary proxies and are logged under their proxy names.
+``proxy`` (the Stage 2 baseline, ``AttentionConfig(mode="proxy", ior_frames=1)``):
+``(1 - confidence) * max(1 - confidence, eps) * area / max_area`` with spatial
+inhibition of return over the last winners' boxes. Confidence and area are
+temporary proxies and are logged under their proxy names.
 
-``top_down``: each object file in memory supplies an expectation (its predicted
+``top_down`` (the default): each object file in memory supplies an expectation (its predicted
 box, when it was last attended, and how surprising its last observation was).
 A BBP explained by an expectation (spatial similarity at or above
 ``explain_similarity``) inherits that object's staleness and surprise; a BBP no
@@ -39,10 +40,11 @@ _EPS = 1e-6
 class AttentionConfig:
     """Priority policy, weights and inhibition windows. Nothing here is implicit."""
 
-    mode: AttentionMode = "proxy"
+    mode: AttentionMode = "top_down"
     # proxy: frames a winner's box stays inhibited; top_down: frames an attended
     # object stays inhibited (and the spatial fallback window for unexplained BBPs).
-    ior_frames: int = 1
+    # The Stage 2 proxy baseline is AttentionConfig(mode="proxy", ior_frames=1).
+    ior_frames: int = 3
     ior_iou_threshold: float = 0.5
     # Spatial similarity at or above which an expectation explains a BBP.
     explain_similarity: float = 0.3
@@ -83,7 +85,7 @@ class Expectation:
     visibility: str
 
 
-def empty_attention_metrics(mode: AttentionMode = "proxy") -> AttentionMetrics:
+def empty_attention_metrics(mode: AttentionMode = "top_down") -> AttentionMetrics:
     """Return the stable JSONL schema for a frame without BBP candidates."""
     return {
         "selected_bbp_index": None,

@@ -1,5 +1,7 @@
-from attention.scheduler import AttentionScheduler, empty_attention_metrics
+from attention.scheduler import AttentionConfig, AttentionScheduler, empty_attention_metrics
 from perception.bbp import BBP, BoundingBox
+
+PROXY = AttentionConfig(mode="proxy", ior_frames=1)
 
 
 def _bbp(x1: float, *, confidence: float = 0.5, size: float = 10.0) -> BBP:
@@ -12,7 +14,7 @@ def _bbp(x1: float, *, confidence: float = 0.5, size: float = 10.0) -> BBP:
 
 
 def test_selects_exactly_one_winner_from_non_empty_frame() -> None:
-    scheduler = AttentionScheduler()
+    scheduler = AttentionScheduler(PROXY)
     bbps = [_bbp(0.0, confidence=0.9), _bbp(20.0, confidence=0.2)]
 
     selection = scheduler.select(bbps)
@@ -24,8 +26,8 @@ def test_selects_exactly_one_winner_from_non_empty_frame() -> None:
 
 
 def test_returns_none_for_empty_frame() -> None:
-    assert AttentionScheduler().select([]) is None
-    assert set(empty_attention_metrics()) == {
+    assert AttentionScheduler(PROXY).select([]) is None
+    assert set(empty_attention_metrics("proxy")) == {
         "selected_bbp_index",
         "mode",
         "priority",
@@ -42,11 +44,12 @@ def test_returns_none_for_empty_frame() -> None:
         "confidence",
         "explained_by",
     }
-    assert empty_attention_metrics()["mode"] == "proxy"
+    assert empty_attention_metrics("proxy")["mode"] == "proxy"
+    assert empty_attention_metrics()["mode"] == "top_down"
 
 
 def test_inhibition_of_return_prevents_stuck_fixation() -> None:
-    scheduler = AttentionScheduler(ior_frames=1, ior_iou_threshold=0.5)
+    scheduler = AttentionScheduler(PROXY, ior_frames=1, ior_iou_threshold=0.5)
     bbps = [_bbp(0.0, confidence=0.2), _bbp(20.0, confidence=0.4)]
 
     first = scheduler.select(bbps)
@@ -59,7 +62,7 @@ def test_inhibition_of_return_prevents_stuck_fixation() -> None:
 
 
 def test_all_inhibited_candidates_still_produce_one_winner() -> None:
-    scheduler = AttentionScheduler(ior_frames=1, ior_iou_threshold=0.5)
+    scheduler = AttentionScheduler(PROXY, ior_frames=1, ior_iou_threshold=0.5)
     only_bbp = [_bbp(0.0)]
 
     assert scheduler.select(only_bbp) is not None
@@ -71,7 +74,7 @@ def test_all_inhibited_candidates_still_produce_one_winner() -> None:
 
 
 def test_ties_are_deterministic_by_input_order() -> None:
-    scheduler = AttentionScheduler(ior_frames=0)
+    scheduler = AttentionScheduler(PROXY, ior_frames=0)
     bbps = [_bbp(0.0), _bbp(20.0)]
 
     selection = scheduler.select(bbps)

@@ -93,7 +93,9 @@ def test_all_inhibited_still_yields_one_winner_and_ties_keep_order() -> None:
 
 
 def test_proxy_mode_is_untouched_and_config_is_validated() -> None:
-    proxy = AttentionScheduler()
+    assert AttentionScheduler().config.mode == "top_down"  # the default policy
+    assert AttentionScheduler().ior_frames == 3
+    proxy = AttentionScheduler(AttentionConfig(mode="proxy", ior_frames=1))
     assert proxy.config.mode == "proxy" and proxy.ior_frames == 1
     legacy = AttentionScheduler(ior_frames=2, ior_iou_threshold=0.4)
     assert legacy.config.ior_frames == 2 and legacy.config.ior_iou_threshold == 0.4
@@ -144,4 +146,17 @@ def test_proxy_scenario_still_replays_with_attention_checked(
 ) -> None:
     events = run_scripted_session(monkeypatch, tmp_path)
     assert events[0]["config"]["attention"]["mode"] == "proxy"
+    assert replay.compare_traces(events, replay.replay_events(events)) == []
+
+
+def test_default_policy_is_top_down_and_the_scenario_passes_under_it(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    assert ExperimentConfig().attention.mode == "top_down"
+    events = run_scripted_session(monkeypatch, tmp_path, attention=ExperimentConfig().attention)
+    assert events[0]["config"]["attention"] == {**ExperimentConfig().attention.to_dict()}
+    ids = identity_map(events)
+    assert set(ids) == {"A", "B", "C"} and all(len(v) == 1 for v in ids.values())
+    summary = next(e for e in events if e["event"] == "cognition_summary")
+    assert summary["object_counts"]["total"] == 3 and summary["prototype_count"] == 3
     assert replay.compare_traces(events, replay.replay_events(events)) == []

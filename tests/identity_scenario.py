@@ -16,6 +16,7 @@ import numpy as np
 import pytest
 
 import experiments.run as run_module
+from attention.scheduler import AttentionConfig
 from experiments import replay
 from experiments.config import ExperimentConfig
 from objects.memory import PermanenceConfig
@@ -111,6 +112,9 @@ def scenario_config(tmp_path: Path, *, seed: int = 0, **overrides: Any) -> Exper
         seed=seed,
         max_frames=len(scenario()),
         output_dir=str(tmp_path / f"seed{seed}"),
+        # The scenario's frame-by-frame assertions were written for the Stage 2
+        # proxy; tests that want the default top-down policy override this.
+        attention=AttentionConfig(mode="proxy", ior_frames=1),
         permanence=PermanenceConfig(
             occluded_after_frames=1, lost_after_frames=5, dormant_after_frames=30
         ),

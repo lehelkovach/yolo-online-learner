@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 import experiments.run as run_module
+from attention.scheduler import AttentionConfig
 from experiments.config import ExperimentConfig
 from perception.bbp import BBP, BoundingBox
 from perception.video import Frame
@@ -43,7 +44,10 @@ def test_run_session_logs_attention_metrics(monkeypatch: object, tmp_path: Path)
         ),
     )
 
-    output = run_module.run_session(ExperimentConfig(max_frames=1, output_dir=str(tmp_path)))
+    output = run_module.run_session(ExperimentConfig(
+        max_frames=1, output_dir=str(tmp_path),
+        attention=AttentionConfig(mode="proxy", ior_frames=1),  # Stage 2 proxy assertions
+    ))
     events = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
     frame_event = next(event for event in events if event["event"] == "frame")
 
@@ -84,7 +88,10 @@ def test_run_session_embeds_only_the_attention_winner(
         ),
     )
 
-    output = run_module.run_session(ExperimentConfig(max_frames=1, output_dir=str(tmp_path)))
+    output = run_module.run_session(ExperimentConfig(
+        max_frames=1, output_dir=str(tmp_path),
+        attention=AttentionConfig(mode="proxy", ior_frames=1),  # Stage 2 proxy assertions
+    ))
     events = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
     frame_event = next(event for event in events if event["event"] == "frame")
 
@@ -110,7 +117,10 @@ def test_run_session_logs_no_selection_embedding_schema(
         ),
     )
 
-    output = run_module.run_session(ExperimentConfig(max_frames=1, output_dir=str(tmp_path)))
+    output = run_module.run_session(ExperimentConfig(
+        max_frames=1, output_dir=str(tmp_path),
+        attention=AttentionConfig(mode="proxy", ior_frames=1),  # Stage 2 proxy assertions
+    ))
     events = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
     frame_event = next(event for event in events if event["event"] == "frame")
 
