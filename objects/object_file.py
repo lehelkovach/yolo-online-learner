@@ -108,7 +108,11 @@ class ObjectFile:
             )
 
         elapsed = int(frame_idx) - int(self.last_frame_idx)
-        if elapsed > 0 and self.visibility == VisibilityState.VISIBLE:
+        if elapsed > 0 and self.visibility not in ABSENT_STATES:
+            # VISIBLE or briefly OCCLUDED: the displacement over the gap is the best
+            # velocity estimate. Zeroing it after a one-frame miss left walking
+            # objects with a stale predicted box, so glimpses kept failing and they
+            # fell to LOST (docs/EXP_PERM_FIRST_RUN.md).
             old_cx, old_cy = self.center
             new_cx = (bbox.x1 + bbox.x2) / 2.0
             new_cy = (bbox.y1 + bbox.y2) / 2.0
@@ -117,7 +121,8 @@ class ObjectFile:
                 (new_cy - old_cy) / elapsed,
             )
         elif elapsed > 0:
-            # Motion while unobserved is unknown; do not extrapolate stale velocity.
+            # Back from LOST or DORMANT: motion while absent is unknown and the object
+            # may have reappeared anywhere, so do not extrapolate a stale velocity.
             self.velocity_px_per_frame = (0.0, 0.0)
 
         n = self.observation_count

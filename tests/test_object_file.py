@@ -106,6 +106,25 @@ def test_update_restores_visibility_and_clears_misses() -> None:
     assert obj.velocity_px_per_frame == (0.0, 0.0)
 
 
+def test_update_after_short_occlusion_estimates_velocity_from_displacement() -> None:
+    obj = ObjectFile(
+        object_id="obj-1", first_seen_s=0.0, last_seen_s=0.1, last_frame_idx=3,
+        last_bbox=BoundingBox(10.0, 0.0, 20.0, 10.0), prototype_embedding=(1.0, 0.0),
+        embedding_space_id="space_a", visibility=VisibilityState.OCCLUDED, missed_frames=2,
+        velocity_px_per_frame=(0.0, 0.0),
+    )
+
+    obj.update(
+        timestamp_s=0.2, frame_idx=6, bbox=BoundingBox(16.0, 0.0, 26.0, 10.0),
+        embedding=(1.0, 0.0), embedding_space_id="space_a",
+    )
+
+    # Six pixels over three frames: the gap itself is the measurement.
+    assert obj.velocity_px_per_frame == pytest.approx((2.0, 0.0))
+    assert obj.visibility is VisibilityState.VISIBLE
+    assert obj.predicted_bbox(7) == BoundingBox(18.0, 0.0, 28.0, 10.0)
+
+
 def test_predicted_bbox_extrapolates_velocity() -> None:
     obj = _object(velocity_px_per_frame=(1.5, -0.5))
 
