@@ -19,6 +19,11 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from attention.scheduler import (  # noqa: E402
+    AttentionConfig,
+    AttentionScheduler,
+    empty_attention_metrics,
+)
 from experiments.cognition import PerceptualLearner  # noqa: E402
 from experiments.config import ExperimentConfig  # noqa: E402
 from features.encoder import EmbeddingResult  # noqa: E402
@@ -32,8 +37,8 @@ from objects.memory import PermanenceConfig  # noqa: E402
 from perception.bbp import BBP  # noqa: E402
 
 TRACE_KEYS = (
-    "observation_id", "object_file", "object_memory", "learning", "prediction",
-    "working_memory", "graph",
+    "attention", "observation_id", "object_file", "object_memory", "learning",
+    "prediction", "working_memory", "graph",
 )
 FLOAT_ABS_TOL = 1e-9
 FLOAT_REL_TOL = 1e-9
@@ -46,6 +51,7 @@ def load_events(path: str | Path) -> list[dict[str, Any]]:
 
 def config_from_event(start_event: dict[str, Any]) -> ExperimentConfig:
     raw = dict(start_event["config"])
+    attention = AttentionConfig(**raw.pop("attention", {}))
     binder = BinderConfig(**raw.pop("binder"))
     permanence = PermanenceConfig(**raw.pop("permanence"))
     prototypes = PrototypeMemoryConfig(**raw.pop("prototypes"))
@@ -55,6 +61,7 @@ def config_from_event(start_event: dict[str, Any]) -> ExperimentConfig:
     working_memory = WorkingMemoryConfig(**raw.pop("working_memory", {}))
     raw.pop("preview", None)
     return ExperimentConfig(
+        attention=attention,
         binder=binder,
         permanence=permanence,
         prototypes=prototypes,
@@ -81,19 +88,29 @@ def replay_events_with_learner(
 
     ``cfg`` overrides the logged configuration; ``experiments/sweep.py`` uses it to
     rerun the logged BBPs and embeddings under different memory thresholds. The
-    attention selection is taken from the log either way.
+    attention decision is regenerated from the replayed expectations and reported
+    in the trace, but the *logged* selection drives the memories either way, since
+    only the logged winner carries an embedding.
     """
     start = next(event for event in events if event["event"] == "session_start")
     if cfg is None:
         cfg = config_from_event(start)
     space_id = start["embedding_schema"]["embedding_space_id"]
     learner = PerceptualLearner(cfg, encoder_space_id=space_id)
+    attention = AttentionScheduler(cfg.attention)
 
     trace: list[dict[str, Any]] = []
     for event in events:
         if event["event"] != "frame":
             continue
         bbps = [BBP.from_dict(b) for b in event["bbps"]]
+        frame_idx = int(event["frame_idx"])
+        regenerated = attention.select(bbps, expectations=learner.expectations(frame_idx))
+        attention_metrics = (
+            regenerated.to_metrics(len(bbps))
+            if regenerated is not None
+            else empty_attention_metrics(cfg.attention.mode)
+        )
         selected = event["attention"]["selected_bbp_index"]
         embedding = None
         if selected is not None and bbps[selected].embedding is not None:
@@ -105,7 +122,7 @@ def replay_events_with_learner(
             selected_index=selected,
             embedding=embedding,
         )
-        trace.append({"frame_idx": event["frame_idx"], **blocks})
+        trace.append({"frame_idx": event["frame_idx"], "attention": attention_metrics, **blocks})
     return trace, learner
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from attention.scheduler import AttentionConfig
 from features.simple_embedding import SIMPLE_EMBEDDING_SPACE_ID
 from graph.memory_graph import MemoryGraphConfig
 from memory.episodes import EpisodicMemoryConfig
@@ -42,6 +43,7 @@ class ExperimentConfig:
     # Output folder relative to repo root.
     output_dir: str = "outputs"
     preview: bool = False
+    attention: AttentionConfig = field(default_factory=AttentionConfig)
     binder: BinderConfig = field(default_factory=BinderConfig)
     permanence: PermanenceConfig = field(default_factory=PermanenceConfig)
     prototypes: PrototypeMemoryConfig = field(default_factory=_default_prototype_config)

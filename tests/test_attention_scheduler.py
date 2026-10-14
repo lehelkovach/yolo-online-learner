@@ -27,13 +27,22 @@ def test_returns_none_for_empty_frame() -> None:
     assert AttentionScheduler().select([]) is None
     assert set(empty_attention_metrics()) == {
         "selected_bbp_index",
+        "mode",
         "priority",
+        "runner_up_priority",
+        "margin",
+        "candidate_count",
+        "inhibited_count",
         "novelty_proxy",
         "error_proxy",
         "motion_proxy",
-        "candidate_count",
-        "inhibited_count",
+        "unexpectedness",
+        "surprise",
+        "staleness",
+        "confidence",
+        "explained_by",
     }
+    assert empty_attention_metrics()["mode"] == "proxy"
 
 
 def test_inhibition_of_return_prevents_stuck_fixation() -> None:

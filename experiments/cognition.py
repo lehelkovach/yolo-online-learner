@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from attention.scheduler import Expectation
 from experiments.config import ExperimentConfig
 from features.encoder import EmbeddingResult, ensure_same_space
 from graph.memory_graph import MemoryGraph
@@ -109,6 +110,7 @@ class PerceptualLearner:
         self.graph = MemoryGraph(config=cfg.graph)
         self.prediction_stats = PredictionStats()
         self.working_memory = WorkingMemory(config=cfg.working_memory)
+        self._last_surprise: dict[str, float] = {}
 
     def schema(self) -> dict[str, Any]:
         return {
@@ -121,6 +123,28 @@ class PerceptualLearner:
             "observation_id_seed": observation_id_seed(self.cfg.seed),
             "embedding_space_id": self.encoder_space_id,
         }
+
+    def expectations(self, frame_idx: int) -> list[Expectation]:
+        """Top-down expectations for ``frame_idx``: every VISIBLE or OCCLUDED object file.
+
+        Built before the frame's selection, so attention can prefer what no object
+        explains and revisit objects it has not attended for a while. Absent (LOST,
+        DORMANT) objects predict no position and are left out.
+        """
+        out: list[Expectation] = []
+        for obj in self.object_memory.objects:
+            if obj.visibility in (VisibilityState.LOST, VisibilityState.DORMANT):
+                continue
+            out.append(
+                Expectation(
+                    object_id=obj.object_id,
+                    predicted_bbox=obj.predicted_bbox(frame_idx),
+                    last_attended_frame=obj.last_frame_idx,
+                    surprise=self._last_surprise.get(obj.object_id, 0.0),
+                    visibility=obj.visibility.value,
+                )
+            )
+        return out
 
     def step(
         self,
@@ -154,6 +178,7 @@ class PerceptualLearner:
             }
             error = prediction_error(binding, bbps[selected_index].bbox, self.cfg.prediction)
             self.prediction_stats.record(error)
+            self._last_surprise[binding.object_id] = error.surprise
             prediction = {"status": "ok", **error.to_dict()}
             cue = self.working_memory.cue(
                 binding.object_id, frame_idx=frame_idx, error=error.surprise
@@ -190,6 +215,8 @@ class PerceptualLearner:
             )
             if gone and self.working_memory.release(transition.object_id):
                 released.append(transition.object_id)
+            if transition.to_state is None:
+                self._last_surprise.pop(transition.object_id, None)
         working_memory.update(
             released=released,
             capacity=self.cfg.working_memory.capacity,

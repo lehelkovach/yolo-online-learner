@@ -71,6 +71,12 @@ python scripts/run_bbp_stream.py --source 0 --save-jsonl outputs/bbps.jsonl --ma
 python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
 ```
 
+Add `--attention top_down --ior-frames 3` to rank BBPs by what the object files
+expect (unexpected boxes first, then violated expectations, then objects not
+attended for a while) with object-based inhibition of return; the default
+`proxy` policy is the Stage 2 confidence/area baseline. Every component is
+logged under `attention` and replay regenerates and checks the decision.
+
 On real video add `--encoder yolo`: the attended crop is embedded with the frozen
 detector's own features (256-d, layer 21, input 160) instead of the 10-d
 colour/geometry vector, which cannot separate real objects
