@@ -65,10 +65,18 @@ def replay_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def replay_events_with_learner(
     events: list[dict[str, Any]],
+    *,
+    cfg: ExperimentConfig | None = None,
 ) -> tuple[list[dict[str, Any]], PerceptualLearner]:
-    """Replay and also return the learner, so end-of-session state can be checked."""
+    """Replay and also return the learner, so end-of-session state can be checked.
+
+    ``cfg`` overrides the logged configuration; ``experiments/sweep.py`` uses it to
+    rerun the logged BBPs and embeddings under different memory thresholds. The
+    attention selection is taken from the log either way.
+    """
     start = next(event for event in events if event["event"] == "session_start")
-    cfg = config_from_event(start)
+    if cfg is None:
+        cfg = config_from_event(start)
     space_id = start["embedding_schema"]["embedding_space_id"]
     learner = PerceptualLearner(cfg, encoder_space_id=space_id)
 
