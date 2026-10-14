@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from features.encoder import EmbeddingResult
-from objects.binder import BinderConfig, BindingResult, ObjectBinder
+from objects.binder import BinderConfig, BindingResult, ObjectBinder, spatial_similarity
 from objects.ids import IdFactory, random_uuid_factory
 from objects.object_file import ObjectFile, VisibilityState
 from perception.bbp import BBP
@@ -20,9 +20,13 @@ class PermanenceConfig:
     dormant_after_frames: int = 30
     # ``None`` keeps dormant objects forever; an int forgets them after that many misses.
     forget_after_frames: int | None = None
-    # Unattended BBPs overlapping a VISIBLE object's predicted box at or above this IoU
-    # count as a cheap spatial glimpse that resets its miss counter. ``None`` disables.
+    # Unattended BBPs are assigned one-to-one to VISIBLE and OCCLUDED objects by
+    # spatial similarity to the predicted box (IoU softened by the centre kernel);
+    # an assignment at or above this threshold is a track update. ``None`` disables.
     glimpse_iou_threshold: float | None = 0.5
+    # ``True``: a track update moves the object and re-estimates its velocity.
+    # ``False``: the pre-Stage-9 glimpse, which only spares the miss counter.
+    track_update_position: bool = True
 
     def __post_init__(self) -> None:
         if not 1 <= self.occluded_after_frames <= self.lost_after_frames:
@@ -40,6 +44,26 @@ class PermanenceConfig:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class TrackAssignment:
+    """One unattended BBP assigned to one object this frame."""
+
+    object_id: str
+    bbp_index: int
+    similarity: float
+    previous_visibility: VisibilityState
+    moved: bool
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "object_id": self.object_id,
+            "bbp_index": self.bbp_index,
+            "similarity": self.similarity,
+            "previous_visibility": self.previous_visibility.value,
+            "moved": self.moved,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,25 +187,61 @@ class ObjectMemory:
             predicted_bbox=predicted,
         )
 
-    def glimpse(self, bbps: Sequence[BBP], *, frame_idx: int) -> list[str]:
-        """Mark VISIBLE objects overlapped by unattended BBPs as still present.
+    def track(self, bbps: Sequence[BBP], *, frame_idx: int) -> list[TrackAssignment]:
+        """Assign unattended BBPs one-to-one to VISIBLE/OCCLUDED objects by position.
 
-        No appearance or position update happens; only the miss counter is spared.
+        Pairs are taken greedily by spatial similarity between the BBP and the
+        object's predicted box (ties: object insertion order, then BBP order), each
+        BBP and each object at most once, at or above ``glimpse_iou_threshold``.
+        With ``track_update_position`` the object moves to the box and re-estimates
+        its velocity; appearance is never touched because no embedding was made.
+        Without it this is the old glimpse: the miss counter is spared, nothing moves.
         """
         threshold = self.permanence.glimpse_iou_threshold
         if threshold is None or not bbps:
             return []
-        glimpsed: list[str] = []
-        for obj in self._objects.values():
-            if obj.visibility is not VisibilityState.VISIBLE:
-                continue
-            if self._seen_this_frame.get(obj.object_id) == frame_idx:
-                continue
+        candidates = [
+            obj for obj in self._objects.values()
+            if obj.visibility in (VisibilityState.VISIBLE, VisibilityState.OCCLUDED)
+            and self._seen_this_frame.get(obj.object_id) != frame_idx
+        ]
+        pairs: list[tuple[float, int, int]] = []
+        for obj_rank, obj in enumerate(candidates):
             predicted = obj.predicted_bbox(frame_idx)
-            if any(bbp.bbox.iou(predicted) >= threshold for bbp in bbps):
-                self._seen_this_frame[obj.object_id] = frame_idx
-                glimpsed.append(obj.object_id)
-        return glimpsed
+            for index, bbp in enumerate(bbps):
+                value = spatial_similarity(
+                    bbp.bbox, predicted, scale=self.binder_config.spatial_distance_scale
+                )
+                if value >= threshold:
+                    pairs.append((value, obj_rank, index))
+        pairs.sort(key=lambda item: (-item[0], item[1], item[2]))
+        taken_objects: set[int] = set()
+        taken_bbps: set[int] = set()
+        assignments: list[TrackAssignment] = []
+        for value, obj_rank, index in pairs:
+            if obj_rank in taken_objects or index in taken_bbps:
+                continue
+            taken_objects.add(obj_rank)
+            taken_bbps.add(index)
+            obj = candidates[obj_rank]
+            previous = obj.visibility
+            if self.permanence.track_update_position:
+                obj.track(frame_idx=frame_idx, bbox=bbps[index].bbox)
+            self._seen_this_frame[obj.object_id] = frame_idx
+            assignments.append(
+                TrackAssignment(
+                    object_id=obj.object_id,
+                    bbp_index=index,
+                    similarity=float(value),
+                    previous_visibility=previous,
+                    moved=self.permanence.track_update_position,
+                )
+            )
+        return assignments
+
+    def glimpse(self, bbps: Sequence[BBP], *, frame_idx: int) -> list[str]:
+        """Compatibility wrapper: object ids kept alive by ``track``."""
+        return [assignment.object_id for assignment in self.track(bbps, frame_idx=frame_idx)]
 
     def advance(self, frame_idx: int) -> list[VisibilityTransition]:
         """Count a miss for every object not observed or glimpsed at ``frame_idx``."""

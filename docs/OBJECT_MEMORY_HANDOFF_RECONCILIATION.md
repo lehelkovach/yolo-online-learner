@@ -111,10 +111,17 @@ Every memory layer below takes `EmbeddingResult`, never a bare vector.
 - Ties keep insertion order (older object wins), so decisions are deterministic.
 - `ObjectMemory` owns the ladder `VISIBLE -> OCCLUDED -> LOST -> DORMANT` with
   frame thresholds in `PermanenceConfig`, plus optional forgetting. Because
-  attention embeds one BBP per frame, unattended BBPs that overlap a VISIBLE
-  object's predicted box register as a *glimpse*: the miss counter is spared but
-  no appearance or position update occurs. Without this, two visible objects would
-  flicker OCCLUDED on alternate frames purely because of inhibition-of-return.
+  attention embeds one BBP per frame, unattended BBPs are assigned one-to-one to
+  VISIBLE and OCCLUDED objects by spatial similarity to their predicted boxes
+  (`ObjectMemory.track`, logged as `tracked`): the object moves to the box and
+  re-estimates its velocity, but its appearance, observation count and attended
+  frame are untouched because no embedding was made. Without this, two visible
+  objects would flicker OCCLUDED on alternate frames purely because of
+  inhibition-of-return, and walking objects would drift away from their stale
+  boxes. `track_update_position: false` restores the original glimpse (miss
+  counter spared, nothing moves) as the baseline. `ObjectFile.last_frame_idx` is
+  the last position evidence; `last_attended_frame_idx` the last appearance
+  observation, which is what attention staleness counts.
 - IDs come from an injectable factory. `seeded_uuid_factory(seed)` yields
   UUID4-shaped identifiers that replay exactly; `sequential_id_factory` serves
   tests.
@@ -193,7 +200,9 @@ and returns the blocks appended to every `frame` event (plus a top-level
                 "reidentified": true, "match_score": 0.85, "candidate_count": 3,
                 "previous_visibility": "lost", "visibility": "visible", "...": "..."},
 "object_memory": {"counts": {"visible": 3, "occluded": 0, "lost": 0, "dormant": 0,
-                  "total": 3}, "glimpsed": ["obj-…"], "transitions": []},
+                  "total": 3}, "tracked": [{"object_id": "obj-…", "bbp_index": 1,
+                  "similarity": 0.9, "previous_visibility": "visible", "moved": true}],
+                  "transitions": []},
 "learning": {"status": "ok", "novelty": 0.0, "nearest_prototype_id": "proto-…",
              "band": "known_instance", "prototype_updated": true, "...": "..."}
 ```
@@ -281,9 +290,11 @@ the evaluator (zero switches, two of two reacquisitions) and shows the
   `identity_eval.py` scores them, so the question is answerable from a single
   recording.
 - Only the attended BBP updates appearance. A long-visible but never-attended
-  object stays VISIBLE via glimpses but its embedding does not drift with it.
-- Glimpses use IoU only; a different object passing through the predicted box
-  can keep a departed object VISIBLE for a few frames.
+  object stays VISIBLE and moves via track updates, but its embedding does not
+  drift with it.
+- Track updates are spatial only; a different object passing through the
+  predicted box can take over a departed object's track until attention lands
+  on it and the appearance check corrects the binding.
 - `identity_confidence` currently stores the last match score; calibration is
   future work.
 

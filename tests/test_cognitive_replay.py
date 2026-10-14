@@ -91,7 +91,9 @@ def test_unattended_objects_are_glimpsed_instead_of_flickering(
     for idx in range(11, 13):
         attended = attended_truth(frames[idx])
         other = "B" if attended == "A" else "A"
-        assert frames[idx]["object_memory"]["glimpsed"] == [ids[other]]
+        tracked = frames[idx]["object_memory"]["tracked"]
+        assert [t["object_id"] for t in tracked] == [ids[other]]
+        assert tracked[0]["moved"] is True and tracked[0]["previous_visibility"] == "visible"
         assert frames[idx]["object_memory"]["transitions"] == []
 
 

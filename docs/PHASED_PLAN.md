@@ -89,6 +89,14 @@ Stage 7's graph substrate is reused by the percept-graph integration step.
 
 - Conventional tracker first; then learn motion prototypes.
 - Tests: reduced drift / fewer ID switches; motion class separation.
+- Status: object files and permanence (the identity half) landed with the
+  object-memory sprint; the spatial half of the conventional tracker is
+  `ObjectMemory.track`: unattended BBPs are assigned one-to-one to VISIBLE and
+  OCCLUDED objects by spatial similarity to the predicted box and the object
+  moves and re-estimates its velocity (`track_update_position`, default on; off
+  restores the glimpse baseline). On the first recorded clip it halves
+  within-track ID switches (`docs/EXP_PERM_FIRST_RUN.md` §6). Still open:
+  positional uncertainty for absent objects, and motion prototypes.
 
 ### Stage 10 — Spiking recurrence + RL label association
 
