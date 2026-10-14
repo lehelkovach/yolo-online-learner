@@ -18,6 +18,7 @@ This repo now includes a minimal **Phase-1 scaffold**:
 - `scripts/run_bbp_stream.py`: CLI to stream BBPs and optionally write JSONL
 - `attention/scheduler.py`: WTA attention with inhibition-of-return
 - `features/encoder.py`: `PerceptEncoder` interface (+ `features/simple_embedding.py` baseline)
+- `features/yolo_encoder.py`: frozen-YOLO crop features (`--encoder yolo`), the encoder for real video
 - `objects/`: `ObjectFile`, `ObjectBinder`, `ObjectMemory` (visibility/permanence)
 - `memory/prototypes.py`: bounded prototype bank + memory-relative novelty
 - `memory/episodes.py`: episodic memory of attended observations (provenance for later layers)
@@ -69,6 +70,12 @@ python scripts/run_bbp_stream.py --source 0 --save-jsonl outputs/bbps.jsonl --ma
 ```bash
 python experiments/run.py --source 0 --max-frames 300 --output-dir outputs
 ```
+
+On real video add `--encoder yolo`: the attended crop is embedded with the frozen
+detector's own features (256-d, layer 21, input 160) instead of the 10-d
+colour/geometry vector, which cannot separate real objects
+(`docs/EXP_PERM_FIRST_RUN.md`). The prototype memory's embedding space follows
+the encoder automatically.
 
 ### Replay a session's cognitive trace
 
@@ -122,6 +129,7 @@ detection and attention only; learned prototype strength arrives in Stage 4.
 - `docs/RESEARCH_HANDOFF_RECONCILIATION.md`: crosswalk from the revised research handoff to the canonical stage plan
 - `docs/OBJECT_MEMORY_HANDOFF_RECONCILIATION.md`: object files, permanence, prototype memory and replay (current sprint)
 - `docs/EXP_PERM_PROTOCOL.md`: recorded-clip identity validation (endpoints, annotation format, decision rule)
+- `docs/EXP_PERM_FIRST_RUN.md`: first run on a recorded clip: encoder, re-identification and attention findings
 - `docs/DEBUGGING.md`: debugging + refactor guidance
 - `docs/OBS_SETUP.md`: OBS recording setup for studies
 - `docs/REFERENCE_REPOS.md`: reference repos/libraries to fork or borrow from

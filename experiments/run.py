@@ -19,10 +19,8 @@ from experiments.cognition import PerceptualLearner  # noqa: E402
 from experiments.config import ExperimentConfig  # noqa: E402
 from experiments.preview import OpenCvPreview  # noqa: E402
 from features.encoder import SimpleCropEncoder  # noqa: E402
-from features.simple_embedding import (  # noqa: E402
-    attended_embedding_metrics,
-    simple_embedding_schema,
-)
+from features.simple_embedding import attended_embedding_metrics  # noqa: E402
+from features.yolo_encoder import YoloCropEncoder, yolo_space_id  # noqa: E402
 from memory.prediction import PredictionConfig  # noqa: E402
 from memory.prototypes import PrototypeMemoryConfig  # noqa: E402
 from memory.working_memory import WorkingMemoryConfig  # noqa: E402
@@ -50,6 +48,30 @@ def code_revision() -> str | None:
     return revision if result.returncode == 0 and revision else None
 
 
+ENCODERS = ("simple", "yolo")
+
+
+def encoder_space_id(cfg: ExperimentConfig) -> str:
+    """Space id the configured encoder will produce, without loading any weights."""
+    if cfg.encoder == "simple":
+        return SimpleCropEncoder().space_id
+    if cfg.encoder == "yolo":
+        return yolo_space_id(cfg.yolo_model, cfg.encoder_layer, cfg.encoder_imgsz)
+    raise ValueError(f"unknown encoder {cfg.encoder!r}; choose one of {ENCODERS}")
+
+
+def build_encoder(cfg: ExperimentConfig):
+    """Instantiate the configured attended-crop encoder."""
+    if cfg.encoder == "simple":
+        return SimpleCropEncoder()
+    if cfg.encoder == "yolo":
+        return YoloCropEncoder(
+            model=cfg.yolo_model, layer=cfg.encoder_layer, imgsz=cfg.encoder_imgsz,
+            device=cfg.yolo_device,
+        )
+    raise ValueError(f"unknown encoder {cfg.encoder!r}; choose one of {ENCODERS}")
+
+
 def graph_snapshot_path(session_path: Path) -> Path:
     """Sidecar JSON holding the percept-graph snapshot for a session log."""
     return session_path.with_name(f"{session_path.stem}_graph.json")
@@ -73,7 +95,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
         if cfg.preview:
             preview = OpenCvPreview()
         attention = AttentionScheduler()
-        encoder = SimpleCropEncoder()
+        encoder = build_encoder(cfg)
         learner = PerceptualLearner(cfg, encoder_space_id=encoder.space_id)
         stop_reason = "completed"
 
@@ -85,7 +107,7 @@ def run_session(cfg: ExperimentConfig) -> Path:
                 "event": "session_start",
                 "code_revision": code_revision(),
                 "config": config_metrics,
-                "embedding_schema": simple_embedding_schema(),
+                "embedding_schema": encoder.schema(),
                 "cognition_schema": learner.schema(),
             }
             if cfg.preview:
@@ -132,6 +154,8 @@ def run_session(cfg: ExperimentConfig) -> Path:
                 embedding_metrics = attended_embedding_metrics(
                     embedding_result,
                     selected_bbp_index=selected_bbp_index,
+                    space_id=encoder.space_id,
+                    dimension=encoder.dimension,
                 )
                 f.write(
                     json.dumps(
@@ -193,6 +217,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--yolo-conf", type=float, default=0.25)
     p.add_argument("--yolo-iou", type=float, default=0.7)
     p.add_argument("--preview", action="store_true", help="Show live BBPs and WTA attention")
+    p.add_argument(
+        "--encoder", choices=ENCODERS, default="simple",
+        help="attended-crop encoder: simple (10-d colour/geometry) or yolo (frozen features)",
+    )
+    p.add_argument("--encoder-layer", type=int, default=ExperimentConfig().encoder_layer,
+                   help="YOLO layer whose pooled output is the embedding (yolo encoder)")
+    p.add_argument("--encoder-imgsz", type=int, default=ExperimentConfig().encoder_imgsz,
+                   help="crop input size for the yolo encoder")
     binder_defaults = BinderConfig()
     permanence_defaults = PermanenceConfig()
     prototype_defaults = PrototypeMemoryConfig(embedding_space_id=SimpleCropEncoder().space_id)
@@ -243,6 +275,13 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError:
         source = args.source
 
+    base_cfg = ExperimentConfig(
+        yolo_model=args.yolo_model, encoder=args.encoder, encoder_layer=args.encoder_layer,
+        encoder_imgsz=args.encoder_imgsz,
+    )
+    prototype_defaults = replace(
+        prototype_defaults, embedding_space_id=encoder_space_id(base_cfg)
+    )
     cfg = ExperimentConfig(
         seed=args.seed,
         source=source,
@@ -252,6 +291,9 @@ def main(argv: list[str] | None = None) -> int:
         yolo_device=args.yolo_device,
         yolo_conf=args.yolo_conf,
         yolo_iou=args.yolo_iou,
+        encoder=args.encoder,
+        encoder_layer=args.encoder_layer,
+        encoder_imgsz=args.encoder_imgsz,
         preview=args.preview,
         output_dir=args.output_dir,
         binder=replace(

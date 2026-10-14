@@ -7,9 +7,11 @@ from typing import Protocol, runtime_checkable
 import numpy as np
 
 from features.simple_embedding import (
+    SIMPLE_EMBEDDING_DIM,
     SIMPLE_EMBEDDING_SPACE_ID,
     SimpleCropEmbedding,
     embed_attended_crop,
+    simple_embedding_schema,
 )
 from perception.bbp import BoundingBox
 
@@ -48,6 +50,13 @@ class SimpleCropEncoder:
     @property
     def space_id(self) -> str:
         return SIMPLE_EMBEDDING_SPACE_ID
+
+    @property
+    def dimension(self) -> int:
+        return SIMPLE_EMBEDDING_DIM
+
+    def schema(self) -> dict[str, object]:
+        return simple_embedding_schema()
 
     def encode_crop(self, frame_bgr: object, bbox: BoundingBox) -> SimpleCropEmbedding | None:
         """Return the full Stage-3 result (vector plus crop provenance)."""
