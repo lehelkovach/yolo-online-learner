@@ -52,30 +52,32 @@ def attended_embedding_metrics(
     result: SimpleCropEmbedding | None,
     *,
     selected_bbp_index: int | None,
+    space_id: str = SIMPLE_EMBEDDING_SPACE_ID,
+    dimension: int = SIMPLE_EMBEDDING_DIM,
 ) -> EmbeddingMetrics:
-    """Return a fixed-key per-frame metric payload for Stage 3."""
+    """Return a fixed-key per-frame metric payload for the attended embedding."""
     status = "ok" if result is not None else (
         "no_selection" if selected_bbp_index is None else "invalid_crop"
     )
     return {
-        "embedding_space_id": SIMPLE_EMBEDDING_SPACE_ID,
+        "embedding_space_id": space_id,
         "status": status,
         "selected_bbp_index": selected_bbp_index,
-        "dimension": SIMPLE_EMBEDDING_DIM,
+        "dimension": dimension,
         "norm": None if result is None else float(np.linalg.norm(result.vector)),
         "raw_norm": None if result is None else result.raw_norm,
         "crop_xyxy": None if result is None else list(result.crop_xyxy),
     }
 
 
-def embed_attended_crop(
-    frame_bgr: object,
-    bbox: BoundingBox,
-) -> SimpleCropEmbedding | None:
-    """Encode one attended crop with bounded geometry and simple RGB statistics.
+def crop_window(
+    frame_bgr: object, bbox: BoundingBox
+) -> tuple[tuple[float, float, float, float], tuple[int, int, int, int]] | None:
+    """Validate a frame and box; return the clipped float box and the integer crop.
 
-    Geometry uses the continuously clipped box. Pixel statistics use a crop whose
-    start coordinates are floored and stop coordinates are ceiled.
+    The float box is clipped to the frame. The integer crop floors the start and
+    ceils the stop coordinates. ``None`` means there is nothing valid to encode.
+    Every crop encoder uses this so they all cut the same window.
     """
     if not isinstance(frame_bgr, np.ndarray):
         return None
@@ -96,9 +98,7 @@ def embed_attended_crop(
     y1 = max(0.0, min(float(frame_height), bbox.y1))
     x2 = max(0.0, min(float(frame_width), bbox.x2))
     y2 = max(0.0, min(float(frame_height), bbox.y2))
-    width = x2 - x1
-    height = y2 - y1
-    if width <= 0.0 or height <= 0.0:
+    if x2 - x1 <= 0.0 or y2 - y1 <= 0.0:
         return None
 
     crop_x1 = max(0, min(frame_width, math.floor(x1)))
@@ -107,8 +107,27 @@ def embed_attended_crop(
     crop_y2 = max(0, min(frame_height, math.ceil(y2)))
     if crop_x2 <= crop_x1 or crop_y2 <= crop_y1:
         return None
+    return (x1, y1, x2, y2), (crop_x1, crop_y1, crop_x2, crop_y2)
 
-    crop = frame_bgr[crop_y1:crop_y2, crop_x1:crop_x2]
+
+def embed_attended_crop(
+    frame_bgr: object,
+    bbox: BoundingBox,
+) -> SimpleCropEmbedding | None:
+    """Encode one attended crop with bounded geometry and simple RGB statistics.
+
+    Geometry uses the continuously clipped box. Pixel statistics use a crop whose
+    start coordinates are floored and stop coordinates are ceiled.
+    """
+    window = crop_window(frame_bgr, bbox)
+    if window is None:
+        return None
+    (x1, y1, x2, y2), (crop_x1, crop_y1, crop_x2, crop_y2) = window
+    frame_height, frame_width = frame_bgr.shape[:2]  # type: ignore[union-attr]
+    width = x2 - x1
+    height = y2 - y1
+
+    crop = frame_bgr[crop_y1:crop_y2, crop_x1:crop_x2]  # type: ignore[index]
     if crop.size == 0:
         return None
 

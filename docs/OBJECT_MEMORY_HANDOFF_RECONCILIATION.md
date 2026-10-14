@@ -269,10 +269,13 @@ the evaluator (zero switches, two of two reacquisitions) and shows the
 ## 5. Known limits of this baseline
 
 - The simple 10-d embedding separates the synthetic objects cleanly; on real
-  video, appearance similarity between different objects of the same colour
-  and shape will be high. Thresholds are configuration; `experiments/sweep.py`
-  runs threshold sweeps offline on one recorded log and `identity_eval.py` scores
-  them, so the question is answerable from a single recording.
+  video it does not separate anything (cosine 0.99 between every pair of crops
+  on the first recorded clip, `docs/EXP_PERM_FIRST_RUN.md`). `--encoder yolo`
+  (`features/yolo_encoder.py`, frozen detector features behind the same
+  interface) is the encoder for real video. Thresholds are configuration;
+  `experiments/sweep.py` runs threshold sweeps offline on one recorded log and
+  `identity_eval.py` scores them, so the question is answerable from a single
+  recording.
 - Only the attended BBP updates appearance. A long-visible but never-attended
   object stays VISIBLE via glimpses but its embedding does not drift with it.
 - Glimpses use IoU only; a different object passing through the predicted box
@@ -302,9 +305,12 @@ that the handoff intentionally defers.
    (EXP-PERM endpoints: reacquisition, ID switches, position error) before
    category learning. The harness, annotation format and decision rule are in
    `docs/EXP_PERM_PROTOCOL.md`; what remains is recording and annotating the clip
-   locally and running the two commands there. If the simple crop embedding
-   cannot separate similar objects, add a stronger `PerceptEncoder`
-   (DINOv2-small) before continuing.
+   locally and running the two commands there. A first pass on a public
+   pedestrian clip (`docs/EXP_PERM_FIRST_RUN.md`) showed the simple crop
+   embedding cannot separate real objects, added the frozen-YOLO encoder, and
+   found two further blockers: re-identification after LOST uses a flat spatial
+   prior, and the Stage 2 attention proxy fixates on large static objects. Those
+   two mechanisms come before the hand-annotated re-run.
 2. Category memory and learner (`categories/`), adding `category` nodes and
    `INSTANCE_OF` edges to the graph.
 3. Consolidation proposals with evidence ids drawn from episodic memory, then the

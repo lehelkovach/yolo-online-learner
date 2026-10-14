@@ -40,11 +40,12 @@ can be reported separately.
    sha256sum clips/mugs_occlusion.mp4
    ```
 
-3. **Run a session** on the clip:
+3. **Run a session** on the clip with the frozen-YOLO crop encoder (the 10-d
+   default cannot separate real objects, see `docs/EXP_PERM_FIRST_RUN.md`):
 
    ```bash
    poetry run python experiments/run.py --source clips/mugs_occlusion.mp4 \
-       --max-frames 600 --output-dir outputs
+       --max-frames 600 --output-dir outputs --encoder yolo
    ```
 
 4. **Annotate ground truth** as one JSON document. Truth ids are your labels for
@@ -120,10 +121,12 @@ can be reported separately.
 - **Thresholds only:** if some sweep variant passes while the default does not,
   change the defaults in a configuration-only PR and re-run the protocol.
 - **Encoder insufficient:** if no variant separates the similar pair without
-  fragmenting (merges and switches trade off across the sweep), the simple 10-d
-  crop embedding cannot carry identity on real video. The next PR is a stronger
-  `PerceptEncoder` (DINOv2-small) behind the same interface, then this protocol
-  again. Category learning stays gated until a pass.
+  fragmenting (merges and switches trade off across the sweep), the encoder
+  cannot carry identity on real video. This happened on the first run with the
+  10-d vector (`docs/EXP_PERM_FIRST_RUN.md`); `--encoder yolo` is the answer in
+  this repository, and DINOv2-small behind the same interface remains the next
+  escalation where its weights are reachable. Category learning stays gated
+  until a pass.
 
 Record the commit hash, clip hash, seed, the eval and sweep JSON, and any negative
 result alongside the recording (`docs/OBS_SETUP.md`).

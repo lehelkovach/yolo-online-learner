@@ -33,6 +33,12 @@ class ExperimentConfig:
     yolo_device: str | None = None
     yolo_conf: float = 0.25
     yolo_iou: float = 0.7
+    # Attended-crop encoder: "simple" (10-d geometry + colour) or "yolo" (frozen
+    # detector features, see features/yolo_encoder.py). The prototype memory's
+    # embedding_space_id must match the encoder's space id.
+    encoder: str = "simple"
+    encoder_layer: int = 21
+    encoder_imgsz: int = 160
     # Output folder relative to repo root.
     output_dir: str = "outputs"
     preview: bool = False
