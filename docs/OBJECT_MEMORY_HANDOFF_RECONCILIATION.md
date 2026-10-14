@@ -126,6 +126,20 @@ deterministically. `score_novelty` never mutates and returns `1 - max cosine`
 with the nearest prototype ID and similarity; empty memory returns novelty `1.0`
 with `memory_empty: true` and no nearest prototype.
 
+Spawning into a non-empty memory is gated by two configuration options that
+default to off: `novelty_hysteresis` (consecutive unmatched observations required
+before a spawn, default 1) and `spawn_cooldown` (observations that must pass
+after a spawn before the next, default 0). The hysteresis streak is keyed by the
+attended object file, because inhibition of return alternates attention between
+objects and a single shared streak would be reset by every other object before
+it could grow; the cooldown is shared. A deferred observation changes
+nothing and the `learning` block says so in `decision`
+(`created`, `updated`, `deferred_hysteresis`, `deferred_cooldown` or
+`disabled`); `prototype_id` is `null` for it. `learning_enabled: false` is the
+non-learning baseline the experiment invariants require: novelty is still
+scored, nothing is ever created or updated. All three are CLI flags on
+`experiments/run.py` and sweepable through `experiments/sweep.py`.
+
 Novelty is not yet fed back into `AttentionScheduler`; the scheduler keeps its
 labelled confidence proxy until novelty is validated on recorded clips.
 
@@ -241,9 +255,12 @@ carries an alternative prototype bank (`objects/prototype_bank.py`) with a
 spawn cooldown, novelty hysteresis, utility-based eviction, a `learning_enabled`
 disable switch, and a GitHub Actions CI workflow. `memory/prototypes.py` is the
 canonical implementation because it consumes the `PerceptEncoder` contract and is
-replayable from the log; the cooldown, hysteresis and disable switch are worth
-porting as separate, individually tested config options, and the CI workflow
-should be revived as its own PR. `origin/cursor/episodic-object-permanence-56eb`
+replayable from the log. Its cooldown, hysteresis and disable switch have since
+been ported into `PrototypeMemoryConfig` as `spawn_cooldown`,
+`novelty_hysteresis` and `learning_enabled` (observation-counted rather than
+frame-counted, since one observation is bound per frame), and the CI workflow
+was revived; utility-based eviction remains an open alternative to the
+strength-based eviction used here. `origin/cursor/episodic-object-permanence-56eb`
 only contains a plan note; its Kalman ghost-buffer idea is the Stage 9 tracker
 that the handoff intentionally defers.
 

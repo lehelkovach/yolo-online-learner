@@ -214,6 +214,18 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--prototype-learning-rate", type=float, default=prototype_defaults.learning_rate
     )
+    p.add_argument(
+        "--novelty-hysteresis", type=int, default=prototype_defaults.novelty_hysteresis,
+        help="consecutive unmatched observations required before a prototype spawns",
+    )
+    p.add_argument(
+        "--spawn-cooldown", type=int, default=prototype_defaults.spawn_cooldown,
+        help="observations that must pass after a spawn before the next spawn",
+    )
+    p.add_argument(
+        "--no-prototype-learning", action="store_true",
+        help="score novelty but never create or update prototypes (baseline)",
+    )
     args = p.parse_args(argv)
 
     try:
@@ -249,6 +261,9 @@ def main(argv: list[str] | None = None) -> int:
             learning_rate=args.prototype_learning_rate,
             match_threshold=args.prototype_threshold,
             max_prototypes=args.max_prototypes,
+            novelty_hysteresis=args.novelty_hysteresis,
+            spawn_cooldown=args.spawn_cooldown,
+            learning_enabled=not args.no_prototype_learning,
         ),
     )
     out_path = run_session(cfg)

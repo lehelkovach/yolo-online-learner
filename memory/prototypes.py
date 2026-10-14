@@ -27,6 +27,13 @@ class PrototypeMemoryConfig:
     known_instance_max: float = 0.1
     known_category_max: float = 0.3
     boundary_max: float = 0.5
+    # Consecutive unmatched observations required before a spawn (1 = spawn at once).
+    novelty_hysteresis: int = 1
+    # Observations that must pass after a spawn before the next spawn is allowed.
+    spawn_cooldown: int = 0
+    # ``False`` scores novelty but never creates or updates a prototype: the
+    # non-learning baseline every learned mechanism must have.
+    learning_enabled: bool = True
 
     def __post_init__(self) -> None:
         if not self.embedding_space_id:
@@ -43,6 +50,10 @@ class PrototypeMemoryConfig:
             raise ValueError("strength_decay must be in [0, 1)")
         if not 0.0 <= self.known_instance_max <= self.known_category_max <= self.boundary_max:
             raise ValueError("novelty band edges must be non-decreasing and >= 0")
+        if self.novelty_hysteresis < 1:
+            raise ValueError("novelty_hysteresis must be >= 1")
+        if self.spawn_cooldown < 0:
+            raise ValueError("spawn_cooldown must be non-negative")
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -100,14 +111,23 @@ class NoveltyResult:
         }
 
 
+Decision = Literal[
+    "created", "updated", "deferred_hysteresis", "deferred_cooldown", "disabled"
+]
+
+
 @dataclass(frozen=True, slots=True)
 class PrototypeUpdate:
-    prototype_id: str
+    """What one observation did to memory. ``prototype_id`` is ``None`` when nothing
+    was created or updated (a deferred spawn or disabled learning)."""
+
+    prototype_id: str | None
     created: bool
     updated: bool
     evicted_prototype_id: str | None
     novelty: NoveltyResult
     prototype_count: int
+    decision: Decision
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -117,6 +137,7 @@ class PrototypeUpdate:
             "prototype_updated": self.updated,
             "evicted_prototype_id": self.evicted_prototype_id,
             "prototype_count": self.prototype_count,
+            "decision": self.decision,
         }
 
 
@@ -137,6 +158,13 @@ class PrototypeMemory:
     config: PrototypeMemoryConfig
     id_factory: IdFactory = field(default_factory=random_uuid_factory)
     _prototypes: dict[str, Prototype] = field(default_factory=dict, init=False)
+    _observations: int = field(default=0, init=False)
+    # Unmatched-observation streaks, keyed by the caller's ``streak_key`` (``None`` is
+    # one shared streak). The cognition loop keys them by object file because
+    # inhibition of return alternates attention between objects, so a single
+    # shared streak would be reset by every other object before it could grow.
+    _unmatched_streaks: dict[str | None, int] = field(default_factory=dict, init=False)
+    _last_spawn_observation: int | None = field(default=None, init=False)
 
     @property
     def prototypes(self) -> list[Prototype]:
@@ -186,17 +214,46 @@ class PrototypeMemory:
             memory_empty=False,
         )
 
-    def observe(self, embedding: EmbeddingResult, *, timestamp_s: float) -> PrototypeUpdate:
-        """Score novelty, then update the nearest prototype or spawn a new one."""
+    def _no_change(self, novelty: NoveltyResult, decision: Decision) -> PrototypeUpdate:
+        return PrototypeUpdate(
+            prototype_id=None,
+            created=False,
+            updated=False,
+            evicted_prototype_id=None,
+            novelty=novelty,
+            prototype_count=len(self._prototypes),
+            decision=decision,
+        )
+
+    def observe(
+        self,
+        embedding: EmbeddingResult,
+        *,
+        timestamp_s: float,
+        streak_key: str | None = None,
+    ) -> PrototypeUpdate:
+        """Score novelty, then update the nearest prototype or spawn a new one.
+
+        Spawning into a non-empty memory is gated by ``novelty_hysteresis``
+        (consecutive unmatched observations under the same ``streak_key``) and
+        ``spawn_cooldown`` (observations since the last spawn, shared); a deferred
+        observation changes nothing and says so in ``decision``. With
+        ``learning_enabled`` false nothing ever changes.
+        """
         vector = self._check(embedding)
         novelty = self.score_novelty(embedding)
         cfg = self.config
+        self._observations += 1
+
+        if not cfg.learning_enabled:
+            return self._no_change(novelty, "disabled")
 
         if (
             novelty.nearest_prototype_id is not None
             and novelty.nearest_similarity is not None
             and novelty.nearest_similarity >= cfg.match_threshold
         ):
+            self._unmatched_streaks.pop(streak_key, None)
             prototype = self._prototypes[novelty.nearest_prototype_id]
             old = np.asarray(prototype.centroid, dtype=np.float64)
             if cfg.update_rule == "running_mean":
@@ -216,7 +273,19 @@ class PrototypeMemory:
                 evicted_prototype_id=None,
                 novelty=novelty,
                 prototype_count=len(self._prototypes),
+                decision="updated",
             )
+
+        streak = self._unmatched_streaks.get(streak_key, 0) + 1
+        self._unmatched_streaks[streak_key] = streak
+        if self._prototypes:  # the first prototype is never deferred
+            if streak < cfg.novelty_hysteresis:
+                return self._no_change(novelty, "deferred_hysteresis")
+            if (
+                self._last_spawn_observation is not None
+                and self._observations - self._last_spawn_observation <= cfg.spawn_cooldown
+            ):
+                return self._no_change(novelty, "deferred_cooldown")
 
         evicted = None
         if len(self._prototypes) >= cfg.max_prototypes:
@@ -234,6 +303,8 @@ class PrototypeMemory:
             strength=1.0,
         )
         self._decay_others(prototype_id)
+        self._unmatched_streaks.pop(streak_key, None)
+        self._last_spawn_observation = self._observations
         return PrototypeUpdate(
             prototype_id=prototype_id,
             created=True,
@@ -241,6 +312,7 @@ class PrototypeMemory:
             evicted_prototype_id=evicted,
             novelty=novelty,
             prototype_count=len(self._prototypes),
+            decision="created",
         )
 
     def _decay_others(self, winner_id: str) -> None:
@@ -263,5 +335,15 @@ class PrototypeMemory:
     def to_dict(self) -> dict[str, Any]:
         return {
             "config": self.config.to_dict(),
+            "state": {
+                "observations": self._observations,
+                "unmatched_streaks": {
+                    "" if key is None else key: value
+                    for key, value in sorted(
+                        self._unmatched_streaks.items(), key=lambda kv: kv[0] or ""
+                    )
+                },
+                "last_spawn_observation": self._last_spawn_observation,
+            },
             "prototypes": [p.to_dict() for p in self._prototypes.values()],
         }
