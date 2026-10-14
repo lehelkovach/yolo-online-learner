@@ -73,6 +73,7 @@ def empty_learning_metrics(status: str) -> dict[str, Any]:
         "prototype_updated": None,
         "evicted_prototype_id": None,
         "prototype_count": None,
+        "decision": None,
     }
 
 
@@ -150,7 +151,9 @@ class PerceptualLearner:
                 category_id=obj.category_id,
             )
             observation_id = episode.observation_id
-            update = self.prototype_memory.observe(embedding, timestamp_s=timestamp_s)
+            update = self.prototype_memory.observe(
+                embedding, timestamp_s=timestamp_s, streak_key=binding.object_id
+            )
             learning = {"status": "ok", **update.to_dict()}
             self.graph.record_observation(
                 episode,
