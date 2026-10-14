@@ -24,6 +24,12 @@ class BinderConfig:
     spatial_distance_scale: float = 1.0
     # Spatial evidence used for LOST/DORMANT objects whose position is unknown.
     absent_spatial_prior: float = 0.5
+    # > 0: an absent object also predicts its last box with a centre kernel whose
+    # scale grows by this factor per missed frame, and its spatial evidence is the
+    # larger of the prior and that kernel. 0 keeps the flat prior alone. With a low
+    # prior this stops a newcomer on the other side of the frame from re-activating
+    # a recently LOST object (docs/EXP_PERM_FIRST_RUN.md §2).
+    absent_uncertainty_growth: float = 0.0
     # Class compatibility when both class ids are known and differ.
     class_mismatch_similarity: float = 0.0
     # Class compatibility when at least one class id is unknown.
@@ -41,6 +47,8 @@ class BinderConfig:
                 raise ValueError(f"{name} must be non-negative")
         if self.spatial_distance_scale <= 0.0:
             raise ValueError("spatial_distance_scale must be positive")
+        if self.absent_uncertainty_growth < 0.0:
+            raise ValueError("absent_uncertainty_growth must be non-negative")
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -99,16 +107,39 @@ class BindingResult:
         }
 
 
-def spatial_similarity(candidate: BoundingBox, predicted: BoundingBox, *, scale: float) -> float:
-    """IoU, softened by an exponential center-distance kernel for fast movers."""
-    iou = candidate.iou(predicted)
+def center_kernel(candidate: BoundingBox, predicted: BoundingBox, *, scale: float) -> float:
+    """``exp(-centre distance / (scale * predicted diagonal))``; 0 for a degenerate box."""
     diag = math.hypot(predicted.w, predicted.h)
     if diag <= 0.0:
-        return iou
+        return 0.0
     cx = (candidate.x1 + candidate.x2) / 2.0 - (predicted.x1 + predicted.x2) / 2.0
     cy = (candidate.y1 + candidate.y2) / 2.0 - (predicted.y1 + predicted.y2) / 2.0
-    kernel = math.exp(-math.hypot(cx, cy) / (scale * diag))
-    return max(iou, kernel)
+    return math.exp(-math.hypot(cx, cy) / (scale * diag))
+
+
+def spatial_similarity(candidate: BoundingBox, predicted: BoundingBox, *, scale: float) -> float:
+    """IoU, softened by an exponential center-distance kernel for fast movers."""
+    return max(candidate.iou(predicted), center_kernel(candidate, predicted, scale=scale))
+
+
+def absent_spatial_evidence(
+    candidate: BoundingBox, last_bbox: BoundingBox, *, missed_frames: int, config: BinderConfig
+) -> float:
+    """Spatial evidence for a LOST/DORMANT object.
+
+    The flat prior says "it could be anywhere". With ``absent_uncertainty_growth``
+    the object also predicts its last box (no velocity: motion while absent is
+    unknown) with a kernel that widens by the growth factor per missed frame, so a
+    reappearance near where it vanished scores high, and one far away after a short
+    absence scores no more than the prior.
+    """
+    prior = config.absent_spatial_prior
+    if config.absent_uncertainty_growth <= 0.0:
+        return prior
+    scale = config.spatial_distance_scale * (
+        1.0 + config.absent_uncertainty_growth * max(0, int(missed_frames))
+    )
+    return max(prior, center_kernel(candidate, last_bbox, scale=scale))
 
 
 class ObjectBinder:
@@ -128,7 +159,9 @@ class ObjectBinder:
         appearance = cosine_similarity(embedding.vector, obj.prototype_embedding)
         appearance = max(0.0, appearance)
         if obj.visibility in ABSENT_STATES:
-            spatial = cfg.absent_spatial_prior
+            spatial = absent_spatial_evidence(
+                bbp.bbox, obj.last_bbox, missed_frames=obj.missed_frames, config=cfg
+            )
             threshold = cfg.reid_threshold
         else:
             spatial = spatial_similarity(
