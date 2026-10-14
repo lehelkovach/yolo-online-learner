@@ -79,6 +79,7 @@ The handoff numbers its own stages 1-12. They are not the canonical
 | run.py integration | Stage 0 harness | `experiments/cognition.py`, `experiments/replay.py` | done for 1-7 and 10 |
 | EXP-PERM harness | "categories after tracking" gate | `experiments/identity_eval.py`, `experiments/sweep.py` | done; recorded-clip run pending |
 | (not in handoff) prediction error | Stage 5 | `memory/prediction.py` | done; typed error, no plasticity change |
+| (not in handoff) working memory | Stage 8 | `memory/working_memory.py` | done; register only, nothing reads it yet |
 
 Canonical Stage 5 (top-down expected embedding and prediction error) and Stage 8
 (K-slot working memory) are not in the handoff's sprint list but remain planned;
@@ -234,6 +235,21 @@ surprise `1.0`). The `prediction` block is part of the replay contract and the
 session summary carries the EXP-PREDICT endpoints (counts per kind, mean errors).
 Prototype-level error is the Stage 4 novelty. Nothing gates plasticity or
 attention on it yet: that is Stage 6 and the deferred attention feedback.
+
+### Working memory (`memory/working_memory.py`, canonical Stage 8)
+
+A bounded register of the few object files the system currently has in mind.
+An attention cue (a percept bound to an object file) loads that object or
+refreshes its slot; when all `capacity` slots are taken the lowest-utility slot
+is evicted, with `utility = recency + evidence_weight * log1p(cues) -
+error_weight * last_error` (recency halving every `recency_half_life_frames`),
+or by recency alone. An object that goes LOST releases its slot; OCCLUDED
+objects stay in mind. Ties fall to the earliest load, so eviction is
+deterministic and the `working_memory` block is part of the replay contract;
+the summary carries occupancy, loads, reloads, refreshes, evictions and
+releases. Slots hold references only; the object file remains the source of
+truth. Nothing reads working memory yet: narrowing Stage 5 expectations and
+attention to its contents follows the recorded-clip validation.
 
 ### Tests
 

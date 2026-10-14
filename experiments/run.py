@@ -25,6 +25,7 @@ from features.simple_embedding import (  # noqa: E402
 )
 from memory.prediction import PredictionConfig  # noqa: E402
 from memory.prototypes import PrototypeMemoryConfig  # noqa: E402
+from memory.working_memory import WorkingMemoryConfig  # noqa: E402
 from objects.binder import BinderConfig  # noqa: E402
 from objects.memory import PermanenceConfig  # noqa: E402
 from perception.video import iter_frames  # noqa: E402
@@ -231,6 +232,10 @@ def main(argv: list[str] | None = None) -> int:
         "--violation-threshold", type=float, default=PredictionConfig().violation_threshold,
         help="appearance error at or above this types an expected observation as violated",
     )
+    wm_defaults = WorkingMemoryConfig()
+    p.add_argument("--wm-capacity", type=int, default=wm_defaults.capacity,
+                   help="working-memory slots (K)")
+    p.add_argument("--wm-eviction", choices=("utility", "recency"), default=wm_defaults.eviction)
     args = p.parse_args(argv)
 
     try:
@@ -271,6 +276,9 @@ def main(argv: list[str] | None = None) -> int:
             learning_enabled=not args.no_prototype_learning,
         ),
         prediction=PredictionConfig(violation_threshold=args.violation_threshold),
+        working_memory=replace(
+            wm_defaults, capacity=args.wm_capacity, eviction=args.wm_eviction
+        ),
     )
     out_path = run_session(cfg)
     print(str(out_path))

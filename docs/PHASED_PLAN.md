@@ -70,6 +70,12 @@ Stage 7's graph substrate is reused by the percept-graph integration step.
   loading; eviction by utility/recency/error. Physical object files begin only
   after Stage 9 tracking.
 - Tests: WM capacity never exceeded; cueing reloads prior objects.
+- Status: delivered (`memory/working_memory.py`). Because the object-file half of
+  Stage 9 landed first, slots hold object-file references: an attention cue loads
+  or refreshes the bound object, the lowest-utility slot (recency, evidence, last
+  prediction error) is evicted when full, LOST objects release their slot and
+  OCCLUDED ones stay in mind. Logged per frame as `working_memory`, replayable.
+  Nothing reads it yet: top-down use of WM contents follows the clip validation.
 
 ### Stage 9 — Tracking + motion
 

@@ -16,6 +16,7 @@ from graph.memory_graph import MemoryGraph
 from memory.episodes import EpisodicMemory
 from memory.prediction import PredictionStats, empty_prediction_metrics, prediction_error
 from memory.prototypes import PrototypeMemory
+from memory.working_memory import WorkingMemory, empty_working_memory_metrics
 from objects.ids import seeded_uuid_factory
 from objects.memory import ObjectMemory
 from objects.object_file import VisibilityState
@@ -107,6 +108,7 @@ class PerceptualLearner:
         )
         self.graph = MemoryGraph(config=cfg.graph)
         self.prediction_stats = PredictionStats()
+        self.working_memory = WorkingMemory(config=cfg.working_memory)
 
     def schema(self) -> dict[str, Any]:
         return {
@@ -135,10 +137,12 @@ class PerceptualLearner:
             object_file = empty_object_file_metrics("no_selection")
             learning = empty_learning_metrics("no_selection")
             prediction = empty_prediction_metrics("no_selection")
+            working_memory = empty_working_memory_metrics("no_selection")
         elif embedding is None:
             object_file = empty_object_file_metrics("no_embedding")
             learning = empty_learning_metrics("no_embedding")
             prediction = empty_prediction_metrics("no_embedding")
+            working_memory = empty_working_memory_metrics("no_embedding")
         else:
             binding = self.object_memory.observe(bbps[selected_index], embedding)
             obj = self.object_memory.get(binding.object_id)
@@ -151,6 +155,10 @@ class PerceptualLearner:
             error = prediction_error(binding, bbps[selected_index].bbox, self.cfg.prediction)
             self.prediction_stats.record(error)
             prediction = {"status": "ok", **error.to_dict()}
+            cue = self.working_memory.cue(
+                binding.object_id, frame_idx=frame_idx, error=error.surprise
+            )
+            working_memory = {"status": "ok", **cue.to_dict()}
             episode = self.episodic_memory.record(
                 bbp=bbps[selected_index],
                 object_id=binding.object_id,
@@ -172,9 +180,21 @@ class PerceptualLearner:
         unattended = [bbp for index, bbp in enumerate(bbps) if index != selected_index]
         glimpsed = self.object_memory.glimpse(unattended, frame_idx=frame_idx)
         transitions = self.object_memory.advance(frame_idx)
+        released: list[str] = []
         for transition in transitions:
             if transition.to_state is not None:
                 self.graph.set_visibility(transition.object_id, transition.to_state.value)
+            gone = transition.to_state is None or (
+                self.cfg.working_memory.release_on_lost
+                and transition.to_state is VisibilityState.LOST
+            )
+            if gone and self.working_memory.release(transition.object_id):
+                released.append(transition.object_id)
+        working_memory.update(
+            released=released,
+            capacity=self.cfg.working_memory.capacity,
+            slots=self.working_memory.contents(),
+        )
         visible = [
             obj.object_id for obj in self.object_memory.objects
             if obj.visibility is VisibilityState.VISIBLE
@@ -190,6 +210,7 @@ class PerceptualLearner:
             },
             "learning": learning,
             "prediction": prediction,
+            "working_memory": working_memory,
             "graph": {**self.graph.counts(), "cooccurrence_pairs": cooccurrence_pairs},
         }
 
@@ -203,4 +224,5 @@ class PerceptualLearner:
             "episodes": self.episodic_memory.counts(),
             "graph": self.graph.counts(),
             "prediction": self.prediction_stats.to_dict(),
+            "working_memory": self.working_memory.counts(),
         }
