@@ -149,12 +149,12 @@ non-learning baseline the experiment invariants require: novelty is still
 scored, nothing is ever created or updated. All three are CLI flags on
 `experiments/run.py` and sweepable through `experiments/sweep.py`.
 
-The scheduler keeps its labelled confidence proxy as the default. The
-recorded-clip run (`docs/EXP_PERM_FIRST_RUN.md`) validated that the proxy does
-not scan a real scene, so `AttentionConfig.mode = "top_down"` now ranks BBPs by
-the object files' expectations (unexpectedness, last prediction error,
-staleness, confidence) with object-based inhibition of return; it is opt-in
-until the Stage 9 spatial track update lets identity hold up under it.
+The recorded-clip run (`docs/EXP_PERM_FIRST_RUN.md`) validated that the
+Stage 2 confidence proxy does not scan a real scene. `AttentionConfig.mode =
+"top_down"` is now the default: BBPs are ranked by the object files'
+expectations (unexpectedness, last prediction error, staleness, confidence)
+with a three-frame object-based inhibition of return. The proxy remains the
+labelled baseline; the synthetic identity scenario is pinned to it.
 
 ### Episodic memory (`memory/episodes.py`)
 
