@@ -7,6 +7,7 @@ from graph.memory_graph import MemoryGraphConfig
 from memory.episodes import EpisodicMemoryConfig
 from memory.prediction import PredictionConfig
 from memory.prototypes import PrototypeMemoryConfig
+from memory.working_memory import WorkingMemoryConfig
 from objects.binder import BinderConfig
 from objects.memory import PermanenceConfig
 
@@ -41,3 +42,4 @@ class ExperimentConfig:
     episodes: EpisodicMemoryConfig = field(default_factory=EpisodicMemoryConfig)
     graph: MemoryGraphConfig = field(default_factory=MemoryGraphConfig)
     prediction: PredictionConfig = field(default_factory=PredictionConfig)
+    working_memory: WorkingMemoryConfig = field(default_factory=WorkingMemoryConfig)

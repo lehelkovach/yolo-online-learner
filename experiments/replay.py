@@ -26,12 +26,14 @@ from graph.memory_graph import MemoryGraphConfig  # noqa: E402
 from memory.episodes import EpisodicMemoryConfig  # noqa: E402
 from memory.prediction import PredictionConfig  # noqa: E402
 from memory.prototypes import PrototypeMemoryConfig  # noqa: E402
+from memory.working_memory import WorkingMemoryConfig  # noqa: E402
 from objects.binder import BinderConfig  # noqa: E402
 from objects.memory import PermanenceConfig  # noqa: E402
 from perception.bbp import BBP  # noqa: E402
 
 TRACE_KEYS = (
-    "observation_id", "object_file", "object_memory", "learning", "prediction", "graph"
+    "observation_id", "object_file", "object_memory", "learning", "prediction",
+    "working_memory", "graph",
 )
 FLOAT_ABS_TOL = 1e-9
 FLOAT_REL_TOL = 1e-9
@@ -50,6 +52,7 @@ def config_from_event(start_event: dict[str, Any]) -> ExperimentConfig:
     episodes = EpisodicMemoryConfig(**raw.pop("episodes", {}))
     graph = MemoryGraphConfig(**raw.pop("graph", {}))
     prediction = PredictionConfig(**raw.pop("prediction", {}))
+    working_memory = WorkingMemoryConfig(**raw.pop("working_memory", {}))
     raw.pop("preview", None)
     return ExperimentConfig(
         binder=binder,
@@ -58,6 +61,7 @@ def config_from_event(start_event: dict[str, Any]) -> ExperimentConfig:
         episodes=episodes,
         graph=graph,
         prediction=prediction,
+        working_memory=working_memory,
         **raw,
     )
 
