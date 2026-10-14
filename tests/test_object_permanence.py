@@ -127,20 +127,30 @@ def test_glimpse_by_unattended_bbp_prevents_flicker() -> None:
     assert transitions == []
     obj = memory.get("obj-000001")
     assert obj.visibility is VisibilityState.VISIBLE
-    assert obj.observation_count == 1  # a glimpse is not an observation
-    assert obj.last_frame_idx == 0
+    assert obj.observation_count == 1  # a track update is not an observation
+    assert obj.last_attended_frame_idx == 0
+    assert obj.last_frame_idx == 1 and obj.track_count == 1  # but it did move the object
+    assert obj.last_bbox == BoundingBox(1.0, 0.0, 11.0, 10.0)
 
 
-def test_glimpse_ignores_non_visible_objects_and_far_boxes() -> None:
-    memory = _memory(occluded_after_frames=1, glimpse_iou_threshold=0.5)
+def test_track_reacquires_occluded_objects_but_not_lost_ones_or_far_boxes() -> None:
+    memory = _memory(occluded_after_frames=1, lost_after_frames=2, glimpse_iou_threshold=0.5)
     memory.observe(_bbp(0.0, 0), RED)
     memory.advance(0)
     memory.advance(1)
     assert memory.get("obj-000001").visibility is VisibilityState.OCCLUDED
 
-    assert memory.glimpse([_bbp(0.0, 2)], frame_idx=2) == []
-    memory.observe(_bbp(0.0, 3), RED)
-    assert memory.glimpse([_bbp(300.0, 4)], frame_idx=4) == []
+    # A one-frame detection drop is recovered by position alone.
+    assignments = memory.track([_bbp(0.0, 2)], frame_idx=2)
+    assert [a.previous_visibility for a in assignments] == [VisibilityState.OCCLUDED]
+    assert memory.get("obj-000001").visibility is VisibilityState.VISIBLE
+    memory.advance(2)
+    assert memory.glimpse([_bbp(300.0, 3)], frame_idx=3) == []  # far away
+    memory.advance(3)
+    memory.advance(4)
+    assert memory.get("obj-000001").visibility is VisibilityState.LOST
+    # LOST objects predict no position, so they are never re-acquired by position.
+    assert memory.glimpse([_bbp(0.0, 5)], frame_idx=5) == []
 
 
 def test_glimpse_can_be_disabled() -> None:

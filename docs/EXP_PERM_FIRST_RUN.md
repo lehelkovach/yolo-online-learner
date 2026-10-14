@@ -139,3 +139,33 @@ the next mechanism is the one the ladder already names for Stage 9: a one-to-one
 spatial assignment of unattended BBPs to VISIBLE and OCCLUDED objects that
 updates position and velocity (never appearance), replacing the glimpse. The
 identity endpoints are re-measured after it, with the same clip and truth.
+
+## 6. Follow-up: one-to-one spatial track update
+
+The glimpse is replaced by a track update (`ObjectMemory.track`): unattended
+BBPs are assigned one-to-one to VISIBLE and OCCLUDED objects by spatial
+similarity to the predicted box, greedily by similarity, and the assigned object
+moves to the box and re-estimates its velocity. Appearance is never touched (no
+embedding was made), and attention staleness counts attended frames only. Same
+clip, same truth, YOLO encoder:
+
+| | proxy, glimpse | proxy, track | top_down, glimpse | top_down, track |
+|---|---|---|---|---|
+| OCCLUDED / LOST transitions | 86 / 53 | 48 / 26 | 190 / 91 | 70 / 45 |
+| objects created | 15 | 13 | 17 | 18 |
+| ID switches on provisional truth | 20 | 10 | 82 | 55 |
+| purity | 0.73 | 0.74 | 0.34 | 0.51 |
+| mean position error | 0.08 | 0.10 | 0.37 | 0.23 |
+| `no_permanence` baseline switches | 32 | | | |
+
+Under the default proxy attention within-track switches halve and the
+`no_permanence` baseline is now beaten by a factor of three. Under top-down
+attention, which spends its budget on the crowd, switches fall by a third and
+purity rises from 0.34 to 0.51, still short of the proxy because the proxy
+mostly looks at parked vehicles. The remaining failures are in the group of
+people standing together at the top right, where boxes overlap and the
+appearance of 40x80 px pedestrians is close: that is the re-identification
+problem of §2 (absent objects with a flat prior) plus true association
+ambiguity, which the one-attended-crop design resolves only when attention
+lands on the object. Both are what a hand-annotated scripted-occlusion clip
+should measure next; `top_down` stays opt-in until then.

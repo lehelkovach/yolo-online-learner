@@ -46,14 +46,20 @@ class ObjectFile:
     first_frame_idx: int = field(default=-1)
     missed_frames: int = 0
     last_class_id: int | None = None
-    # Pixels per frame, estimated from the last two observations.
+    # Pixels per frame, estimated from the last two position measurements.
     velocity_px_per_frame: tuple[float, float] = (0.0, 0.0)
+    # ``last_frame_idx`` is the last *position* evidence (attended or tracked);
+    # this is the last frame the object was attended and its appearance updated.
+    last_attended_frame_idx: int = field(default=-1)
+    track_count: int = 0
 
     def __post_init__(self) -> None:
         if not self.object_id:
             raise ValueError("object_id must be non-empty")
         if self.first_frame_idx < 0:
             self.first_frame_idx = self.last_frame_idx
+        if self.last_attended_frame_idx < 0:
+            self.last_attended_frame_idx = self.last_frame_idx
         if self.observation_count < 1:
             raise ValueError("observation_count must be >= 1")
         vector = np.asarray(self.prototype_embedding, dtype=np.float64)
@@ -102,11 +108,30 @@ class ObjectFile:
             )
         if not np.isfinite(new).all():
             raise ValueError(f"{self.object_id}: embedding must be finite")
+        self._move_to(frame_idx=frame_idx, bbox=bbox)
+
+        n = self.observation_count
+        if appearance_eta is None:
+            updated = (n * old + new) / (n + 1)
+        else:
+            if not 0.0 <= appearance_eta <= 1.0:
+                raise ValueError("appearance_eta must be in [0, 1]")
+            updated = old + appearance_eta * (new - old)
+        self.prototype_embedding = tuple(float(v) for v in updated)
+        self.observation_count = n + 1
+        self.last_seen_s = float(timestamp_s)
+        self.last_attended_frame_idx = int(frame_idx)
+        if class_id is not None:
+            self.last_class_id = int(class_id)
+        if identity_confidence is not None:
+            self.identity_confidence = float(identity_confidence)
+
+    def _move_to(self, *, frame_idx: int, bbox: BoundingBox) -> None:
+        """Fold one position measurement in: velocity, box, frame, visibility."""
         if int(frame_idx) < int(self.last_frame_idx):
             raise ValueError(
                 f"{self.object_id}: frame {frame_idx} precedes last frame {self.last_frame_idx}"
             )
-
         elapsed = int(frame_idx) - int(self.last_frame_idx)
         if elapsed > 0 and self.visibility not in ABSENT_STATES:
             # VISIBLE or briefly OCCLUDED: the displacement over the gap is the best
@@ -124,25 +149,20 @@ class ObjectFile:
             # Back from LOST or DORMANT: motion while absent is unknown and the object
             # may have reappeared anywhere, so do not extrapolate a stale velocity.
             self.velocity_px_per_frame = (0.0, 0.0)
-
-        n = self.observation_count
-        if appearance_eta is None:
-            updated = (n * old + new) / (n + 1)
-        else:
-            if not 0.0 <= appearance_eta <= 1.0:
-                raise ValueError("appearance_eta must be in [0, 1]")
-            updated = old + appearance_eta * (new - old)
-        self.prototype_embedding = tuple(float(v) for v in updated)
-        self.observation_count = n + 1
-        self.last_seen_s = float(timestamp_s)
         self.last_frame_idx = int(frame_idx)
         self.last_bbox = bbox
         self.missed_frames = 0
         self.visibility = VisibilityState.VISIBLE
-        if class_id is not None:
-            self.last_class_id = int(class_id)
-        if identity_confidence is not None:
-            self.identity_confidence = float(identity_confidence)
+
+    def track(self, *, frame_idx: int, bbox: BoundingBox) -> None:
+        """Fold one *unattended* position measurement in: no appearance, no class.
+
+        This is the spatial half of tracking: the object moves to ``bbox``, its
+        velocity is re-estimated and it is VISIBLE again. Appearance, observation
+        count and the attended frame are untouched because no embedding was made.
+        """
+        self._move_to(frame_idx=frame_idx, bbox=bbox)
+        self.track_count += 1
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -161,6 +181,8 @@ class ObjectFile:
             "missed_frames": self.missed_frames,
             "last_class_id": self.last_class_id,
             "velocity_px_per_frame": list(self.velocity_px_per_frame),
+            "last_attended_frame_idx": self.last_attended_frame_idx,
+            "track_count": self.track_count,
         }
 
     @staticmethod
@@ -183,4 +205,6 @@ class ObjectFile:
             velocity_px_per_frame=tuple(
                 float(v) for v in d.get("velocity_px_per_frame", (0.0, 0.0))
             ),
+            last_attended_frame_idx=int(d.get("last_attended_frame_idx", d["last_frame_idx"])),
+            track_count=int(d.get("track_count", 0)),
         )

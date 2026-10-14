@@ -139,7 +139,7 @@ class PerceptualLearner:
                 Expectation(
                     object_id=obj.object_id,
                     predicted_bbox=obj.predicted_bbox(frame_idx),
-                    last_attended_frame=obj.last_frame_idx,
+                    last_attended_frame=obj.last_attended_frame_idx,
                     surprise=self._last_surprise.get(obj.object_id, 0.0),
                     visibility=obj.visibility.value,
                 )
@@ -203,7 +203,10 @@ class PerceptualLearner:
             )
 
         unattended = [bbp for index, bbp in enumerate(bbps) if index != selected_index]
-        glimpsed = self.object_memory.glimpse(unattended, frame_idx=frame_idx)
+        tracked = self.object_memory.track(unattended, frame_idx=frame_idx)
+        for assignment in tracked:
+            if assignment.previous_visibility is not VisibilityState.VISIBLE:
+                self.graph.set_visibility(assignment.object_id, VisibilityState.VISIBLE.value)
         transitions = self.object_memory.advance(frame_idx)
         released: list[str] = []
         for transition in transitions:
@@ -232,7 +235,7 @@ class PerceptualLearner:
             "object_file": object_file,
             "object_memory": {
                 "counts": self.object_memory.counts(),
-                "glimpsed": glimpsed,
+                "tracked": [a.to_dict() for a in tracked],
                 "transitions": [t.to_dict() for t in transitions],
             },
             "learning": learning,
